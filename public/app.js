@@ -51,8 +51,7 @@ let completedCount   = 0;
 let totalCount       = 0;
 const videoRowMap    = {};  // index → dl-row element
 
-// Check on page load
-checkCookiesStatus();
+
 
 
 function formatDuration(secs) {
