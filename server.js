@@ -33,6 +33,25 @@ if (!fs.existsSync(DOWNLOADS_DIR)) {
 }
 
 const COOKIES_PATH = path.join(__dirname, 'cookies.txt');
+const AUTH_STATE_PATH = path.join(__dirname, 'auth_state.json');
+
+// ─────────────────────────────────────────────
+// Auth state helpers
+// ─────────────────────────────────────────────
+function loadAuthState() {
+  try {
+    if (fs.existsSync(AUTH_STATE_PATH)) {
+      return JSON.parse(fs.readFileSync(AUTH_STATE_PATH, 'utf8'));
+    }
+  } catch (_) {}
+  return { connected: false, browser: null, channel: null, connectedAt: null };
+}
+
+function saveAuthState(state) {
+  try { fs.writeFileSync(AUTH_STATE_PATH, JSON.stringify(state, null, 2), 'utf8'); } catch (_) {}
+}
+
+let authState = loadAuthState();
 
 const app = express();
 
@@ -40,9 +59,10 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Helper: get cookies args if cookies.txt exists
+// Helper: get cookies args based on current auth state
 function getCookiesArgs() {
-  if (fs.existsSync(COOKIES_PATH)) {
+  // If signed in via browser, use cookies.txt (exported from browser)
+  if (authState.connected && fs.existsSync(COOKIES_PATH)) {
     return ['--cookies', COOKIES_PATH];
   }
   return [];
@@ -52,37 +72,112 @@ function getCookiesArgs() {
 const jobs = {};
 
 // ─────────────────────────────────────────────
-// POST /api/upload-cookies
+// GET /api/auth/status — current sign-in state
 // ─────────────────────────────────────────────
-app.post('/api/upload-cookies', (req, res) => {
-  const { content } = req.body;
-  if (!content) return res.status(400).json({ error: 'No content provided' });
-  try {
-    fs.writeFileSync(COOKIES_PATH, content, 'utf8');
-    res.json({ status: 'saved', path: COOKIES_PATH });
-  } catch (e) {
-    res.status(500).json({ error: 'Failed to save cookies: ' + e.message });
-  }
+app.get('/api/auth/status', (req, res) => {
+  res.json(authState);
 });
 
-// GET /api/cookies-status
-app.get('/api/cookies-status', (req, res) => {
-  const exists = fs.existsSync(COOKIES_PATH);
-  let size = 0;
-  if (exists) {
-    try { size = fs.statSync(COOKIES_PATH).size; } catch (_) {}
+// ─────────────────────────────────────────────
+// POST /api/auth/signin — extract cookies from browser
+// ─────────────────────────────────────────────
+app.post('/api/auth/signin', (req, res) => {
+  const { browser } = req.body;
+  const SUPPORTED = ['chrome', 'firefox', 'edge', 'opera', 'brave', 'chromium', 'safari'];
+  if (!browser || !SUPPORTED.includes(browser.toLowerCase())) {
+    return res.status(400).json({ error: `Unsupported browser. Choose one of: ${SUPPORTED.join(', ')}` });
   }
-  res.json({ exists, size });
+
+  const browserKey = browser.toLowerCase();
+  console.log(`[Auth] Extracting YouTube cookies from ${browserKey}...`);
+
+  // Step 1: Export cookies from browser to cookies.txt
+  const exportArgs = [
+    '--cookies-from-browser', browserKey,
+    '--cookies', COOKIES_PATH,
+    '--skip-download',
+    '--no-warnings',
+    '--no-check-certificates',
+    '--quiet',
+    'https://www.youtube.com'
+  ];
+
+  const exportProc = spawn(YTDLP_PATH, exportArgs);
+  let exportErr = '';
+  exportProc.stderr.on('data', d => { exportErr += d.toString(); });
+
+  exportProc.on('close', (code) => {
+    if (code !== 0 || !fs.existsSync(COOKIES_PATH)) {
+      console.error('[Auth] Cookie export failed:', exportErr);
+      // Try without --quiet in case of version issue
+      const cleanErr = exportErr.replace(/\s+/g, ' ').trim().substring(0, 200);
+      return res.status(500).json({
+        error: `Could not read cookies from ${browserKey}. Make sure ${browserKey} is installed and you are signed into YouTube. Details: ${cleanErr || 'Unknown error'}`
+      });
+    }
+
+    // Step 2: Verify cookies work by fetching channel info
+    const verifyArgs = [
+      '--cookies', COOKIES_PATH,
+      '--dump-single-json',
+      '--skip-download',
+      '--no-warnings',
+      '--no-check-certificates',
+      '--extractor-args', 'youtube:player_client=android',
+      '--playlist-items', '0',
+      'https://www.youtube.com/feed/subscriptions'
+    ];
+
+    const verifyProc = spawn(YTDLP_PATH, verifyArgs);
+    let verifyOut = '';
+    let verifyErr = '';
+    verifyProc.stdout.on('data', d => { verifyOut += d.toString(); });
+    verifyProc.stderr.on('data', d => { verifyErr += d.toString(); });
+
+    const verifyTimeout = setTimeout(() => {
+      try { verifyProc.kill(); } catch(_){}
+    }, 20000);
+
+    verifyProc.on('close', () => {
+      clearTimeout(verifyTimeout);
+
+      // Extract channel name from output if available
+      let channelName = 'YouTube Account';
+      try {
+        const parsed = JSON.parse(verifyOut);
+        channelName = parsed.uploader || parsed.channel || parsed.title || 'YouTube Account';
+      } catch (_) {
+        // Try to extract from error text
+        const match = verifyErr.match(/Logged in as (.+?)(?:\.|$)/i);
+        if (match) channelName = match[1].trim();
+      }
+
+      // Even if verification is partial, if cookies.txt exists it's usable
+      authState = {
+        connected: true,
+        browser: browserKey,
+        channel: channelName,
+        connectedAt: new Date().toISOString()
+      };
+      saveAuthState(authState);
+
+      console.log(`[Auth] Successfully connected: ${channelName} via ${browserKey}`);
+      res.json({ success: true, ...authState });
+    });
+  });
 });
 
-// DELETE /api/cookies
-app.delete('/api/cookies', (req, res) => {
+// ─────────────────────────────────────────────
+// DELETE /api/auth/signout
+// ─────────────────────────────────────────────
+app.delete('/api/auth/signout', (req, res) => {
   try {
     if (fs.existsSync(COOKIES_PATH)) fs.unlinkSync(COOKIES_PATH);
-    res.json({ status: 'deleted' });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (_) {}
+  authState = { connected: false, browser: null, channel: null, connectedAt: null };
+  saveAuthState(authState);
+  console.log('[Auth] Signed out, cookies deleted.');
+  res.json({ success: true });
 });
 
 // Helper: parse and normalize YouTube URL (handles youtu.be, shorts, radio mixes, playlists)

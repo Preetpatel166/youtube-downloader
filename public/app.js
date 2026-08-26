@@ -51,8 +51,107 @@ let completedCount   = 0;
 let totalCount       = 0;
 const videoRowMap    = {};  // index → dl-row element
 
+// ──────────────────────────────────────────────
+// AUTH — YouTube Sign-In
+// ──────────────────────────────────────────────
 
+const authSigninPanel    = document.getElementById('auth-signin-panel');
+const authConnectedPanel = document.getElementById('auth-connected-panel');
+const authConnectedBadge = document.getElementById('auth-connected-badge');
+const authChannelName    = document.getElementById('auth-channel-name');
+const authAccountName    = document.getElementById('auth-account-name');
+const authAccountBrowser = document.getElementById('auth-account-browser');
+const authError          = document.getElementById('auth-error');
+const signinBtn          = document.getElementById('signin-btn');
+const signinBtnText      = document.getElementById('signin-btn-text');
+const signinLoader       = document.getElementById('signin-loader');
+const signoutBtn         = document.getElementById('signout-btn');
+const browserBtns        = document.querySelectorAll('.browser-btn');
 
+let selectedBrowser = null;
+
+// Load auth state on page load
+(async () => {
+  try {
+    const resp = await fetch(`${API}/auth/status`);
+    const state = await resp.json();
+    applyAuthState(state);
+  } catch (_) {}
+})();
+
+// Browser selection
+browserBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    browserBtns.forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedBrowser = btn.dataset.browser;
+    signinBtn.disabled = false;
+    signinBtnText.textContent = `Connect via ${capitalize(selectedBrowser)}`;
+    authError.classList.add('hidden');
+  });
+});
+
+// Sign in
+signinBtn.addEventListener('click', async () => {
+  if (!selectedBrowser) return;
+  signinBtnText.classList.add('hidden');
+  signinLoader.classList.remove('hidden');
+  signinBtn.disabled = true;
+  authError.classList.add('hidden');
+
+  try {
+    const resp = await fetch(`${API}/auth/signin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ browser: selectedBrowser })
+    });
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch (_) { throw new Error('Unexpected server response.'); }
+
+    if (!resp.ok) throw new Error(data.error || 'Sign-in failed');
+
+    applyAuthState(data);
+  } catch (err) {
+    authError.textContent = err.message;
+    authError.classList.remove('hidden');
+  } finally {
+    signinBtnText.classList.remove('hidden');
+    signinLoader.classList.add('hidden');
+    signinBtn.disabled = !selectedBrowser;
+  }
+});
+
+// Sign out
+signoutBtn.addEventListener('click', async () => {
+  try {
+    await fetch(`${API}/auth/signout`, { method: 'DELETE' });
+  } catch (_) {}
+  applyAuthState({ connected: false });
+});
+
+function applyAuthState(state) {
+  if (state.connected) {
+    authSigninPanel.classList.add('hidden');
+    authConnectedPanel.classList.remove('hidden');
+    authConnectedBadge.classList.remove('hidden');
+    authChannelName.textContent = state.channel || 'Connected';
+    authAccountName.textContent = state.channel || 'YouTube Account';
+    authAccountBrowser.textContent = `via ${capitalize(state.browser || 'browser')}`;
+  } else {
+    authSigninPanel.classList.remove('hidden');
+    authConnectedPanel.classList.add('hidden');
+    authConnectedBadge.classList.add('hidden');
+    selectedBrowser = null;
+    browserBtns.forEach(b => b.classList.remove('selected'));
+    signinBtn.disabled = true;
+    signinBtnText.textContent = 'Select a browser above';
+  }
+}
+
+function capitalize(str) {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+}
 
 function formatDuration(secs) {
   if (!secs) return '';
