@@ -1,0 +1,9 @@
+node_modules
+tools
+*.part
+*.temp.mp4
+*.ytdl
+test_out*
+.git
+downloads
+cookies.txt

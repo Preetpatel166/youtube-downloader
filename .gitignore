@@ -1,0 +1,9 @@
+node_modules/
+tools/
+downloads/
+*.part
+*.temp.mp4
+*.ytdl
+test_out*
+.DS_Store
+cookies.txt
