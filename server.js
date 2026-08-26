@@ -85,6 +85,30 @@ app.delete('/api/cookies', (req, res) => {
   }
 });
 
+// Helper: parse and normalize YouTube URL (stripping auto-generated radio mixes)
+function parseYouTubeUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    const listId = u.searchParams.get('list') || '';
+    const hasVideo = u.searchParams.has('v');
+
+    // If it is a watch link with an auto-generated radio mix (list=RD...), clean it to download the single video
+    if (u.pathname.includes('/watch') && hasVideo) {
+      if (listId.startsWith('RD') || u.searchParams.has('start_radio') || !listId.startsWith('PL')) {
+        u.searchParams.delete('list');
+        u.searchParams.delete('start_radio');
+        u.searchParams.delete('index');
+        return { url: u.toString(), isPlaylist: false };
+      }
+    }
+
+    const isPlaylist = u.pathname.includes('/playlist') || (listId.startsWith('PL') && !hasVideo);
+    return { url: rawUrl, isPlaylist };
+  } catch (_) {
+    return { url: rawUrl, isPlaylist: false };
+  }
+}
+
 // ─────────────────────────────────────────────
 // GET /api/playlist-info?url=... & /api/info?url=...
 // ─────────────────────────────────────────────
@@ -92,16 +116,16 @@ function handleFetchInfo(req, res) {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'URL is required' });
 
-  const isPlaylistUrl = url.includes('list=') || url.includes('/playlist') || url.includes('/channel/') || url.includes('/c/');
+  const parsed = parseYouTubeUrl(url);
 
   const args = [
-    ...(isPlaylistUrl ? ['--flat-playlist'] : ['--no-playlist']),
+    ...(parsed.isPlaylist ? ['--flat-playlist', '--playlist-end', '100'] : ['--no-playlist']),
     '--dump-single-json',
     '--no-warnings',
     '--no-check-certificates',
     '--extractor-args', 'youtube:player_client=android,web',
     ...getCookiesArgs(),
-    url
+    parsed.url
   ];
 
   const proc = spawn(YTDLP_PATH, args);
@@ -126,7 +150,7 @@ function handleFetchInfo(req, res) {
           title: v.title || `Video ${i + 1}`,
           duration: v.duration,
           thumbnail: v.thumbnails?.[0]?.url || (v.id ? `https://img.youtube.com/vi/${v.id}/mqdefault.jpg` : ''),
-          url: v.url || (v.id ? `https://www.youtube.com/watch?v=${v.id}` : url)
+          url: v.url || (v.id ? `https://www.youtube.com/watch?v=${v.id}` : parsed.url)
         }));
         res.json({
           isPlaylist: true,
@@ -153,7 +177,7 @@ function handleFetchInfo(req, res) {
             title: videoTitle,
             duration: data.duration || 0,
             thumbnail: thumb,
-            url: data.webpage_url || data.url || url
+            url: data.webpage_url || data.url || parsed.url
           }]
         });
       }
@@ -173,11 +197,15 @@ app.post('/api/download', (req, res) => {
   const { url, quality, playlistTitle, jobId, isSingleVideo } = req.body;
   if (!url || !jobId) return res.status(400).json({ error: 'URL and jobId are required' });
 
+  const parsed = parseYouTubeUrl(url);
+  const targetUrl = parsed.url;
+  const isSingle = isSingleVideo || !parsed.isPlaylist;
+
   const safeJobId = (jobId || 'job').replace(/[<>:"/\\|?*]/g, '');
   let outputDir;
   let outputTemplate;
 
-  if (isSingleVideo) {
+  if (isSingle) {
     outputDir = path.resolve(DOWNLOADS_DIR, 'YouTube Downloads');
     outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
   } else {
@@ -232,16 +260,15 @@ app.post('/api/download', (req, res) => {
     '--ignore-errors',
     '--no-abort-on-error',
     '--windows-filenames',
-    isSingleVideo ? '--no-playlist' : '--yes-playlist',
+    isSingle ? '--no-playlist' : '--yes-playlist',
     '--merge-output-format', 'mp4',
     '--no-check-certificates',
     '--extractor-args', 'youtube:player_client=android,web',
-    '--js-runtimes', 'node',
     ...getCookiesArgs(),
-    url
+    targetUrl
   ];
 
-  console.log(`\n[${jobId}] Starting concurrent download job for "${playlistTitle}"`);
+  console.log(`\n[${jobId}] Starting concurrent download job for "${playlistTitle || 'YouTube'}"`);
   console.log(`[${jobId}] Target directory: ${outputDir}`);
   console.log(`[${jobId}] Quality: ${quality}, Format: ${formatArg}`);
 
