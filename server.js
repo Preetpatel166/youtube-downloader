@@ -97,6 +97,7 @@ function handleFetchInfo(req, res) {
     '--dump-single-json',
     '--no-warnings',
     '--no-check-certificates',
+    '--extractor-args', 'youtube:player_client=android,web',
     '--js-runtimes', 'node',
     ...getCookiesArgs(),
     url
@@ -232,6 +233,7 @@ app.post('/api/download', (req, res) => {
     isSingleVideo ? '--no-playlist' : '--yes-playlist',
     '--merge-output-format', 'mp4',
     '--no-check-certificates',
+    '--extractor-args', 'youtube:player_client=android,web',
     '--js-runtimes', 'node',
     ...getCookiesArgs(),
     url
