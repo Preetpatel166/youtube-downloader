@@ -156,7 +156,7 @@ function handleFetchInfo(req, res) {
     '--dump-single-json',
     '--no-warnings',
     '--no-check-certificates',
-    '--extractor-args', 'youtube:player_client=android,web',
+    '--extractor-args', 'youtube:player_client=android',
     ...getCookiesArgs(),
     parsed.url
   ];
@@ -174,7 +174,7 @@ function handleFetchInfo(req, res) {
       try { proc.kill('SIGKILL'); } catch (_) {}
       res.status(504).json({ error: 'Request timed out while fetching video details from YouTube. Please check the URL and try again.' });
     }
-  }, 25000);
+  }, 60000);
 
   proc.stdout.on('data', (d) => { output += d.toString(); });
   proc.stderr.on('data', (d) => { errOutput += d.toString(); });
@@ -322,7 +322,7 @@ app.post('/api/download', (req, res) => {
     isSingle ? '--no-playlist' : '--yes-playlist',
     '--merge-output-format', 'mp4',
     '--no-check-certificates',
-    '--extractor-args', 'youtube:player_client=android,web',
+    '--extractor-args', 'youtube:player_client=android',
     ...getCookiesArgs(),
     targetUrl
   ];
