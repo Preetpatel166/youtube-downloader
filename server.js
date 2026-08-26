@@ -177,7 +177,7 @@ app.post('/api/download', (req, res) => {
   let outputTemplate;
 
   if (isSingleVideo) {
-    outputDir = path.join(DOWNLOADS_DIR, `single_${safeJobId}`);
+    outputDir = path.resolve(DOWNLOADS_DIR, 'YouTube Downloads');
     outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
   } else {
     // Create clean folder name for this specific playlist
@@ -185,10 +185,10 @@ app.post('/api/download', (req, res) => {
       .replace(/[<>:"/\\|?*]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
-      .substring(0, 50);
+      .substring(0, 60) || 'YouTube Playlist';
 
-    outputDir = path.join(DOWNLOADS_DIR, `${safeName}_${safeJobId}`);
-    outputTemplate = path.join(outputDir, '%(playlist_index)02d - %(title)s.%(ext)s');
+    outputDir = path.resolve(DOWNLOADS_DIR, safeName);
+    outputTemplate = path.join(outputDir, '%(playlist_index|autonumber)02d - %(title)s.%(ext)s');
   }
 
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
@@ -456,12 +456,15 @@ app.post('/api/cancel', (req, res) => {
 // ─────────────────────────────────────────────
 app.get('/api/open-folder', (req, res) => {
   const { folderPath } = req.query;
-  if (!folderPath || !fs.existsSync(folderPath)) {
-    return res.status(404).json({ error: 'Folder not found' });
+  const targetDir = folderPath ? path.resolve(folderPath) : DOWNLOADS_DIR;
+
+  if (!fs.existsSync(targetDir)) {
+    try { fs.mkdirSync(targetDir, { recursive: true }); } catch (_) {}
   }
+
   if (process.platform === 'win32') {
-    spawn('explorer.exe', [folderPath], { detached: true, stdio: 'ignore' }).unref();
-    return res.json({ status: 'opened' });
+    spawn('explorer.exe', [targetDir], { detached: true, stdio: 'ignore' }).unref();
+    return res.json({ status: 'opened', path: targetDir });
   }
   res.json({ status: 'unsupported_platform', message: 'Local folder open is only supported on Windows client' });
 });

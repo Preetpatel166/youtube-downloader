@@ -586,25 +586,9 @@ function statusLabel(status) {
 async function onAllDone() {
   if (sseSource) { sseSource.close(); sseSource = null; }
 
-  // Mark any remaining rows as done
-  if (currentMedia && currentMedia.isPlaylist) {
-    currentMedia.videos?.forEach(v => {
-      const row = videoRowMap[v.index];
-      if (row && !row.classList.contains('done')) markRowDone(v.index);
-    });
-  } else {
-    markRowDone(1);
-  }
-
-  completedCount = totalCount;
   updateOverall();
-  overallLabel.textContent = totalCount === 1 ? 'Video downloaded successfully! 🎉' : 'All videos downloaded! 🎉';
-
   cancelBtn.classList.add('hidden');
-  const folderLabel = (currentMedia && currentMedia.isPlaylist)
-    ? `Downloads\\${sanitizeFolderName(currentMedia.title)}`
-    : `Downloads\\YouTube Downloads`;
-  doneDesc.innerHTML = `Saved to server.<br><div id="direct-downloads-wrap" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;"></div>`;
+  doneDesc.innerHTML = `Files saved.<br><div id="direct-downloads-wrap" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;"></div>`;
   
   // Fetch files and offer direct browser download links
   try {
@@ -621,8 +605,13 @@ async function onAllDone() {
         link.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Save ${escapeHtml(f)}`;
         directWrap.appendChild(link);
       });
+      overallLabel.textContent = totalCount === 1 ? 'Video downloaded successfully! 🎉' : `Download complete! (${filesData.files.length} files saved) 🎉`;
+    } else {
+      overallLabel.textContent = 'Download finished.';
     }
-  } catch (_) {}
+  } catch (_) {
+    overallLabel.textContent = 'Download finished.';
+  }
 
   doneBanner.classList.remove('hidden');
   doneBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
