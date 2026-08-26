@@ -85,27 +85,60 @@ app.delete('/api/cookies', (req, res) => {
   }
 });
 
-// Helper: parse and normalize YouTube URL (stripping auto-generated radio mixes)
+// Helper: parse and normalize YouTube URL (handles youtu.be, shorts, radio mixes, playlists)
 function parseYouTubeUrl(rawUrl) {
   try {
-    const u = new URL(rawUrl);
-    const listId = u.searchParams.get('list') || '';
-    const hasVideo = u.searchParams.has('v');
+    const trimmed = (rawUrl || '').trim();
+    const u = new URL(trimmed);
+    const hostname = u.hostname.replace(/^www\./, '');
 
-    // If it is a watch link with an auto-generated radio mix (list=RD...), clean it to download the single video
-    if (u.pathname.includes('/watch') && hasVideo) {
-      if (listId.startsWith('RD') || u.searchParams.has('start_radio') || !listId.startsWith('PL')) {
-        u.searchParams.delete('list');
-        u.searchParams.delete('start_radio');
-        u.searchParams.delete('index');
-        return { url: u.toString(), isPlaylist: false };
+    // Handle youtu.be/<videoId>
+    if (hostname === 'youtu.be') {
+      const videoId = u.pathname.replace(/^\/+/, '').split('/')[0].split('?')[0];
+      if (videoId) {
+        return {
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          isPlaylist: false
+        };
       }
     }
 
-    const isPlaylist = u.pathname.includes('/playlist') || (listId.startsWith('PL') && !hasVideo);
-    return { url: rawUrl, isPlaylist };
+    // Handle youtube.com/shorts/<videoId>
+    if (u.pathname.startsWith('/shorts/')) {
+      const videoId = u.pathname.split('/')[2];
+      if (videoId) {
+        return {
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          isPlaylist: false
+        };
+      }
+    }
+
+    // Handle youtube.com/watch?v=<videoId>
+    if (u.pathname.includes('/watch')) {
+      const videoId = u.searchParams.get('v');
+      const listId = u.searchParams.get('list') || '';
+
+      // If it's a mix/radio or any non-PL list attached to a watch link, clean it to the single video
+      if (videoId && (listId.startsWith('RD') || u.searchParams.has('start_radio') || !listId.startsWith('PL'))) {
+        return {
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          isPlaylist: false
+        };
+      }
+      if (videoId && !listId) {
+        return {
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          isPlaylist: false
+        };
+      }
+    }
+
+    const listId = u.searchParams.get('list') || '';
+    const isPlaylist = u.pathname.includes('/playlist') || (listId.startsWith('PL'));
+    return { url: trimmed, isPlaylist };
   } catch (_) {
-    return { url: rawUrl, isPlaylist: false };
+    return { url: (rawUrl || '').trim(), isPlaylist: false };
   }
 }
 
@@ -128,16 +161,42 @@ function handleFetchInfo(req, res) {
     parsed.url
   ];
 
+  console.log(`[Fetch Info] Request for URL: "${url}" -> Parsed: "${parsed.url}" (isPlaylist: ${parsed.isPlaylist})`);
+
   const proc = spawn(YTDLP_PATH, args);
   let output = '';
   let errOutput = '';
+  let isDone = false;
+
+  const timeout = setTimeout(() => {
+    if (!isDone) {
+      isDone = true;
+      try { proc.kill('SIGKILL'); } catch (_) {}
+      res.status(504).json({ error: 'Request timed out while fetching video details from YouTube. Please check the URL and try again.' });
+    }
+  }, 25000);
 
   proc.stdout.on('data', (d) => { output += d.toString(); });
   proc.stderr.on('data', (d) => { errOutput += d.toString(); });
 
   proc.on('close', (code) => {
+    if (isDone) return;
+    isDone = true;
+    clearTimeout(timeout);
+
     if (code !== 0) {
-      return res.status(500).json({ error: 'Failed to fetch video or playlist info', details: errOutput });
+      let cleanError = 'Failed to fetch video or playlist info';
+      if (errOutput.includes('This video is unavailable')) {
+        cleanError = 'This video is unavailable or has been removed from YouTube.';
+      } else if (errOutput.includes('Private video')) {
+        cleanError = 'This video is private on YouTube.';
+      } else if (errOutput.includes('Sign in to confirm')) {
+        cleanError = 'YouTube requires sign-in for this age-restricted video.';
+      } else if (errOutput.trim()) {
+        const match = errOutput.match(/ERROR:\s*(?:\[youtube\]\s*)?([^\n\r]+)/i);
+        if (match) cleanError = match[1].trim();
+      }
+      return res.status(400).json({ error: cleanError, details: errOutput });
     }
     try {
       const data = JSON.parse(output);
