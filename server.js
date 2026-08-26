@@ -92,13 +92,14 @@ function handleFetchInfo(req, res) {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'URL is required' });
 
+  const isPlaylistUrl = url.includes('list=') || url.includes('/playlist') || url.includes('/channel/') || url.includes('/c/');
+
   const args = [
-    '--flat-playlist',
+    ...(isPlaylistUrl ? ['--flat-playlist'] : ['--no-playlist']),
     '--dump-single-json',
     '--no-warnings',
     '--no-check-certificates',
     '--extractor-args', 'youtube:player_client=android,web',
-    '--js-runtimes', 'node',
     ...getCookiesArgs(),
     url
   ];
@@ -197,28 +198,28 @@ app.post('/api/download', (req, res) => {
   let formatArg;
   switch (quality) {
     case '4k':
-      formatArg = 'bestvideo[height<=2160][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best';
+      formatArg = 'bestvideo[height<=2160]+bestaudio/best[height<=2160]/best';
       break;
     case '1440p':
-      formatArg = 'bestvideo[height<=1440][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440]/best';
+      formatArg = 'bestvideo[height<=1440]+bestaudio/best[height<=1440]/best';
       break;
     case '1080p':
-      formatArg = 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
+      formatArg = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
       break;
     case '720p':
-      formatArg = 'bestvideo[height<=720][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+      formatArg = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best';
       break;
     case '480p':
-      formatArg = 'bestvideo[height<=480][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best';
+      formatArg = 'bestvideo[height<=480]+bestaudio/best[height<=480]/best';
       break;
     case '360p':
-      formatArg = 'bestvideo[height<=360][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=360]+bestaudio/best[height<=360]/best';
+      formatArg = 'bestvideo[height<=360]+bestaudio/best[height<=360]/best';
       break;
     case 'audio':
       formatArg = 'bestaudio[ext=m4a]/bestaudio/best';
       break;
     default:
-      formatArg = 'bestvideo[vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo+bestaudio/best';
+      formatArg = 'bestvideo+bestaudio/best';
   }
 
   const args = [
