@@ -4,17 +4,6 @@
 
 const API = '/api';
 
-// DOM references — Cookies
-const cookiesDot         = document.getElementById('cookies-dot');
-const cookiesStatusText  = document.getElementById('cookies-status-text');
-const noCookiesPanel     = document.getElementById('no-cookies-panel');
-const cookiesLoadedPanel = document.getElementById('cookies-loaded-panel');
-const cookiesTextarea    = document.getElementById('cookies-textarea');
-const saveCookiesBtn     = document.getElementById('save-cookies-btn');
-const removeCookiesBtn   = document.getElementById('remove-cookies-btn');
-const cookiesOkSub       = document.getElementById('cookies-ok-sub');
-const cookiesError       = document.getElementById('cookies-error');
-
 // DOM references — Main
 const playlistUrlInput  = document.getElementById('playlist-url');
 const fetchBtn          = document.getElementById('fetch-btn');
@@ -61,86 +50,6 @@ let sseSource        = null;
 let completedCount   = 0;
 let totalCount       = 0;
 const videoRowMap    = {};  // index → dl-row element
-
-// ──────────────────────────────────────────────
-// COOKIES MANAGEMENT
-// ──────────────────────────────────────────────
-
-async function checkCookiesStatus() {
-  try {
-    const resp = await fetch(`${API}/cookies-status`);
-    const data = await resp.json();
-    if (data.exists && data.size > 100) {
-      showCookiesLoaded(data.size);
-    } else {
-      showCookiesMissing();
-    }
-  } catch (_) {
-    showCookiesMissing();
-  }
-}
-
-function showCookiesLoaded(size) {
-  cookiesDot.className = 'status-dot dot-ok';
-  cookiesStatusText.textContent = 'Authenticated';
-  noCookiesPanel.classList.add('hidden');
-  cookiesLoadedPanel.classList.remove('hidden');
-  cookiesOkSub.textContent = `cookies.txt · ${Math.round(size / 1024)} KB`;
-}
-
-function showCookiesMissing() {
-  cookiesDot.className = 'status-dot dot-missing';
-  cookiesStatusText.textContent = 'Not set';
-  noCookiesPanel.classList.remove('hidden');
-  cookiesLoadedPanel.classList.add('hidden');
-}
-
-saveCookiesBtn.addEventListener('click', async () => {
-  const content = cookiesTextarea.value.trim();
-  cookiesError.classList.add('hidden');
-
-  if (!content) {
-    cookiesError.textContent = 'Please paste your cookies.txt content first.';
-    cookiesError.classList.remove('hidden');
-    return;
-  }
-  if (!content.includes('youtube.com') && !content.includes('# Netscape')) {
-    cookiesError.textContent = 'This doesn\'t look like a valid cookies.txt file. Make sure you\'re exporting from youtube.com.';
-    cookiesError.classList.remove('hidden');
-    return;
-  }
-
-  saveCookiesBtn.disabled = true;
-  saveCookiesBtn.textContent = 'Saving…';
-
-  try {
-    const resp = await fetch(`${API}/upload-cookies`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content })
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Failed to save');
-    cookiesTextarea.value = '';
-    await checkCookiesStatus();
-  } catch (err) {
-    cookiesError.textContent = err.message;
-    cookiesError.classList.remove('hidden');
-  } finally {
-    saveCookiesBtn.disabled = false;
-    saveCookiesBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Cookies`;
-  }
-});
-
-removeCookiesBtn.addEventListener('click', async () => {
-  if (!confirm('Remove saved cookies? You\'ll need to re-export them to download again.')) return;
-  try {
-    await fetch(`${API}/cookies`, { method: 'DELETE' });
-    showCookiesMissing();
-  } catch (err) {
-    alert('Failed to remove cookies: ' + err.message);
-  }
-});
 
 // Check on page load
 checkCookiesStatus();

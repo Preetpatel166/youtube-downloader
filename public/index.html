@@ -53,71 +53,7 @@
     <!-- ── MAIN CONTENT ── -->
     <main>
 
-      <!-- Cookies Section -->
-      <section class="card cookies-card" id="cookies-section">
-        <div class="cookies-header">
-          <div class="section-label" style="margin-bottom:0">
-            <span class="step-num">🔑</span>
-            <span>YouTube Authentication</span>
-          </div>
-          <div class="cookies-status" id="cookies-status-wrap">
-            <span class="status-dot dot-loading" id="cookies-dot"></span>
-            <span id="cookies-status-text">Checking…</span>
-          </div>
-        </div>
 
-        <!-- No cookies state -->
-        <div id="no-cookies-panel">
-          <p class="cookies-hint">YouTube requires cookies to download videos. Export yours using the steps below.</p>
-          <div class="steps-list">
-            <div class="step-item">
-              <span class="step-badge">1</span>
-              <div>Install <a href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" class="ext-link">Get cookies.txt LOCALLY</a> extension in Chrome/Edge</div>
-            </div>
-            <div class="step-item">
-              <span class="step-badge">2</span>
-              <div>Go to <strong>youtube.com</strong> and make sure you're <strong>logged in</strong></div>
-            </div>
-            <div class="step-item">
-              <span class="step-badge">3</span>
-              <div>Click the extension icon → select <strong>youtube.com</strong> → click <strong>Export</strong> → copy all</div>
-            </div>
-            <div class="step-item">
-              <span class="step-badge">4</span>
-              <div>Paste the text below and click <strong>Save Cookies</strong></div>
-            </div>
-          </div>
-          <div class="cookies-paste-wrap">
-            <textarea id="cookies-textarea" class="cookies-textarea" placeholder="Paste your cookies.txt content here…" rows="4" spellcheck="false"></textarea>
-            <button id="save-cookies-btn" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-              </svg>
-              Save Cookies
-            </button>
-            <p class="error-msg hidden" id="cookies-error"></p>
-          </div>
-        </div>
-
-        <!-- Cookies loaded state -->
-        <div id="cookies-loaded-panel" class="hidden">
-          <div class="cookies-ok-row">
-            <div class="cookies-ok-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-            </div>
-            <div>
-              <p class="cookies-ok-text">Cookies loaded — YouTube authentication ready ✓</p>
-              <p class="cookies-ok-sub" id="cookies-ok-sub">—</p>
-            </div>
-            <button id="remove-cookies-btn" class="btn btn-ghost" style="margin-left:auto">Remove</button>
-          </div>
-        </div>
-      </section>
 
       <!-- Input Section -->
       <section class="card input-card" id="input-section">
