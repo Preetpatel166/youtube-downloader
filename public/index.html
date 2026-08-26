@@ -65,50 +65,72 @@
           </div>
           <div class="auth-title-group">
             <h2 class="auth-title">YouTube Account</h2>
-            <p class="auth-sub" id="auth-sub">Sign in to download age-restricted and private videos</p>
+            <p class="auth-sub">Sign in to unlock age-restricted &amp; private videos</p>
           </div>
-          <!-- Connected badge -->
           <div id="auth-connected-badge" class="auth-badge auth-badge-on hidden">
             <span class="auth-badge-dot"></span>
             <span id="auth-channel-name">Connected</span>
           </div>
         </div>
 
-        <!-- Sign-in panel (shown when not connected) -->
+        <!-- Sign-in panel -->
         <div id="auth-signin-panel">
-          <p class="auth-hint">Select your browser — your existing YouTube login will be used. No passwords are shared.</p>
-          <div class="auth-browser-row">
-            <button class="browser-btn" data-browser="chrome" id="browser-chrome">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="10" stroke="#4285f4" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#4285f4"/><path d="M12 8h8.6" stroke="#ea4335" stroke-width="2"/><path d="M5.4 18.2L9.2 12" stroke="#fbbc04" stroke-width="2"/><path d="M18.6 18.2L14.8 12" stroke="#34a853" stroke-width="2"/></svg>
-              Chrome
-            </button>
-            <button class="browser-btn" data-browser="firefox" id="browser-firefox">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="#ff6611"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 110-16 8 8 0 010 16z"/><path d="M12 6c-1.5 0-2.9.5-4 1.4 1-.4 2.1-.4 3 0 1.3.5 2.2 1.7 2.2 3.1 0 1.8-1.5 3.3-3.3 3.3-.7 0-1.3-.2-1.9-.5.9 1.5 2.5 2.5 4.3 2.5 2.8 0 5.1-2.3 5.1-5.1C17.4 7.9 14.9 6 12 6z" fill="#ff6611"/></svg>
-              Firefox
-            </button>
-            <button class="browser-btn" data-browser="edge" id="browser-edge">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="#0078d4"><path d="M21.86 17.86C20.5 18.6 18.9 19 17.2 19c-4.6 0-8.3-3.4-8.3-7.7 0-2 .9-3.8 2.3-5C7.7 7 5 9.8 5 13.2c0 4.9 4 8.8 9 8.8 2.8 0 5.3-1.2 7-3.1z"/><path d="M9 6.4C10.2 5.5 11.6 5 13.1 5c4.3 0 7.7 3.5 7.7 7.7 0 1.7-.5 3.2-1.4 4.4C20.4 15.6 21 13.9 21 12c0-5-4-9-9-9-1.1 0-2.1.2-3 .4z"/></svg>
-              Edge
-            </button>
-            <button class="browser-btn" data-browser="brave" id="browser-brave">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="#fb542b"><path d="M12 2L4 6v5c0 4.4 3.4 8.5 8 9.9 4.6-1.4 8-5.5 8-9.9V6l-8-4z"/></svg>
-              Brave
-            </button>
-            <button class="browser-btn" data-browser="opera" id="browser-opera">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="#ff1b2d"><ellipse cx="12" cy="12" rx="10" ry="10"/><ellipse cx="12" cy="12" rx="5" ry="7.5" fill="#fff"/></svg>
-              Opera
-            </button>
+          <!-- Steps -->
+          <div class="auth-steps">
+            <div class="auth-step">
+              <span class="auth-step-num">1</span>
+              <div class="auth-step-body">
+                <p class="auth-step-title">Install the browser extension</p>
+                <div class="auth-step-links">
+                  <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener" class="ext-link">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><circle cx="12" cy="12" r="10" stroke="#4285f4" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#4285f4"/><path d="M12 8h8.6" stroke="#ea4335" stroke-width="2"/></svg>
+                    Chrome / Edge
+                  </a>
+                  <a href="https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/" target="_blank" rel="noopener" class="ext-link">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#ff6611"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 110-16 8 8 0 010 16z"/></svg>
+                    Firefox
+                  </a>
+                </div>
+                <p class="auth-step-note">Free &amp; open-source — no account needed.</p>
+              </div>
+            </div>
+            <div class="auth-step">
+              <span class="auth-step-num">2</span>
+              <div class="auth-step-body">
+                <p class="auth-step-title">Go to <a href="https://www.youtube.com" target="_blank" rel="noopener" class="inline-link">youtube.com</a> and sign in to your account</p>
+              </div>
+            </div>
+            <div class="auth-step">
+              <span class="auth-step-num">3</span>
+              <div class="auth-step-body">
+                <p class="auth-step-title">Click the extension icon → click <strong>Export</strong> → save <code>cookies.txt</code></p>
+              </div>
+            </div>
+            <div class="auth-step">
+              <span class="auth-step-num">4</span>
+              <div class="auth-step-body">
+                <p class="auth-step-title">Upload your <code>cookies.txt</code> file below</p>
+                <label class="cookie-upload-label" id="cookie-upload-label" for="cookie-file-input">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span id="cookie-file-label-text">Choose cookies.txt file…</span>
+                </label>
+                <input type="file" id="cookie-file-input" accept=".txt,text/plain" class="hidden" />
+              </div>
+            </div>
           </div>
+
           <div class="auth-actions">
             <button id="signin-btn" class="btn btn-signin" disabled>
-              <span id="signin-btn-text">Select a browser above</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              <span id="signin-btn-text">Connect YouTube Account</span>
               <div class="btn-loader hidden" id="signin-loader"></div>
             </button>
           </div>
           <p id="auth-error" class="error-msg hidden"></p>
+          <p class="auth-privacy-note">🔒 Your cookies stay on this server only. No data is sent anywhere else.</p>
         </div>
 
-        <!-- Connected panel (shown when signed in) -->
+        <!-- Connected panel -->
         <div id="auth-connected-panel" class="hidden">
           <div class="auth-connected-info">
             <div class="auth-account-row">
@@ -117,7 +139,7 @@
               </div>
               <div>
                 <p class="auth-account-name" id="auth-account-name">YouTube Account</p>
-                <p class="auth-account-browser" id="auth-account-browser">via Chrome</p>
+                <p class="auth-account-browser" id="auth-account-browser">Connected via cookies.txt</p>
               </div>
             </div>
             <button id="signout-btn" class="btn btn-ghost btn-sm">Sign Out</button>
@@ -125,6 +147,7 @@
           <p class="auth-connected-note">✅ Age-restricted and private videos are now unlocked</p>
         </div>
       </section>
+
 
       <!-- Input Section -->
       <section class="card input-card" id="input-section">

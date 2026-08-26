@@ -79,92 +79,45 @@ app.get('/api/auth/status', (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// POST /api/auth/signin — extract cookies from browser
+// POST /api/auth/signin — accept uploaded cookies.txt content
 // ─────────────────────────────────────────────
 app.post('/api/auth/signin', (req, res) => {
-  const { browser } = req.body;
-  const SUPPORTED = ['chrome', 'firefox', 'edge', 'opera', 'brave', 'chromium', 'safari'];
-  if (!browser || !SUPPORTED.includes(browser.toLowerCase())) {
-    return res.status(400).json({ error: `Unsupported browser. Choose one of: ${SUPPORTED.join(', ')}` });
+  const { cookieContent } = req.body;
+
+  if (!cookieContent || typeof cookieContent !== 'string') {
+    return res.status(400).json({ error: 'No cookie content provided. Please upload a cookies.txt file.' });
   }
 
-  const browserKey = browser.toLowerCase();
-  console.log(`[Auth] Extracting YouTube cookies from ${browserKey}...`);
+  // Basic validation: Netscape cookie format starts with "# Netscape HTTP Cookie File" header
+  const firstLine = cookieContent.trim().split('\n')[0];
+  if (!firstLine.includes('Netscape') && !firstLine.startsWith('#') && !cookieContent.includes('\t')) {
+    return res.status(400).json({ error: 'Invalid cookies.txt format. Please export from the "Get cookies.txt LOCALLY" browser extension.' });
+  }
 
-  // Step 1: Export cookies from browser to cookies.txt
-  const exportArgs = [
-    '--cookies-from-browser', browserKey,
-    '--cookies', COOKIES_PATH,
-    '--skip-download',
-    '--no-warnings',
-    '--no-check-certificates',
-    '--quiet',
-    'https://www.youtube.com'
-  ];
+  // Check that it contains YouTube cookies
+  if (!cookieContent.includes('youtube.com') && !cookieContent.includes('.youtube.com')) {
+    return res.status(400).json({ error: 'No YouTube cookies found in the file. Make sure you are signed into YouTube before exporting.' });
+  }
 
-  const exportProc = spawn(YTDLP_PATH, exportArgs);
-  let exportErr = '';
-  exportProc.stderr.on('data', d => { exportErr += d.toString(); });
+  // Save the cookies file
+  try {
+    fs.writeFileSync(COOKIES_PATH, cookieContent, 'utf8');
+    console.log(`[Auth] Cookies saved (${cookieContent.length} bytes)`);
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to save cookies: ' + e.message });
+  }
 
-  exportProc.on('close', (code) => {
-    if (code !== 0 || !fs.existsSync(COOKIES_PATH)) {
-      console.error('[Auth] Cookie export failed:', exportErr);
-      // Try without --quiet in case of version issue
-      const cleanErr = exportErr.replace(/\s+/g, ' ').trim().substring(0, 200);
-      return res.status(500).json({
-        error: `Could not read cookies from ${browserKey}. Make sure ${browserKey} is installed and you are signed into YouTube. Details: ${cleanErr || 'Unknown error'}`
-      });
-    }
+  // Set auth state and return success
+  authState = {
+    connected: true,
+    browser: 'browser',
+    channel: 'YouTube Account',
+    connectedAt: new Date().toISOString()
+  };
+  saveAuthState(authState);
 
-    // Step 2: Verify cookies work by fetching channel info
-    const verifyArgs = [
-      '--cookies', COOKIES_PATH,
-      '--dump-single-json',
-      '--skip-download',
-      '--no-warnings',
-      '--no-check-certificates',
-      '--extractor-args', 'youtube:player_client=android',
-      '--playlist-items', '0',
-      'https://www.youtube.com/feed/subscriptions'
-    ];
-
-    const verifyProc = spawn(YTDLP_PATH, verifyArgs);
-    let verifyOut = '';
-    let verifyErr = '';
-    verifyProc.stdout.on('data', d => { verifyOut += d.toString(); });
-    verifyProc.stderr.on('data', d => { verifyErr += d.toString(); });
-
-    const verifyTimeout = setTimeout(() => {
-      try { verifyProc.kill(); } catch(_){}
-    }, 20000);
-
-    verifyProc.on('close', () => {
-      clearTimeout(verifyTimeout);
-
-      // Extract channel name from output if available
-      let channelName = 'YouTube Account';
-      try {
-        const parsed = JSON.parse(verifyOut);
-        channelName = parsed.uploader || parsed.channel || parsed.title || 'YouTube Account';
-      } catch (_) {
-        // Try to extract from error text
-        const match = verifyErr.match(/Logged in as (.+?)(?:\.|$)/i);
-        if (match) channelName = match[1].trim();
-      }
-
-      // Even if verification is partial, if cookies.txt exists it's usable
-      authState = {
-        connected: true,
-        browser: browserKey,
-        channel: channelName,
-        connectedAt: new Date().toISOString()
-      };
-      saveAuthState(authState);
-
-      console.log(`[Auth] Successfully connected: ${channelName} via ${browserKey}`);
-      res.json({ success: true, ...authState });
-    });
-  });
+  console.log('[Auth] Successfully connected via cookies.txt upload');
+  res.json({ success: true, ...authState });
 });
 
 // ─────────────────────────────────────────────
@@ -179,6 +132,7 @@ app.delete('/api/auth/signout', (req, res) => {
   console.log('[Auth] Signed out, cookies deleted.');
   res.json({ success: true });
 });
+
 
 // Helper: parse and normalize YouTube URL (handles youtu.be, shorts, radio mixes, playlists)
 function parseYouTubeUrl(rawUrl) {

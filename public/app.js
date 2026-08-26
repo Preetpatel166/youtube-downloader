@@ -52,7 +52,7 @@ let totalCount       = 0;
 const videoRowMap    = {};  // index → dl-row element
 
 // ──────────────────────────────────────────────
-// AUTH — YouTube Sign-In
+// AUTH — YouTube Sign-In via cookies.txt upload
 // ──────────────────────────────────────────────
 
 const authSigninPanel    = document.getElementById('auth-signin-panel');
@@ -66,9 +66,10 @@ const signinBtn          = document.getElementById('signin-btn');
 const signinBtnText      = document.getElementById('signin-btn-text');
 const signinLoader       = document.getElementById('signin-loader');
 const signoutBtn         = document.getElementById('signout-btn');
-const browserBtns        = document.querySelectorAll('.browser-btn');
+const cookieFileInput    = document.getElementById('cookie-file-input');
+const cookieFileLabelText = document.getElementById('cookie-file-label-text');
 
-let selectedBrowser = null;
+let cookieFileContent = null;
 
 // Load auth state on page load
 (async () => {
@@ -79,21 +80,23 @@ let selectedBrowser = null;
   } catch (_) {}
 })();
 
-// Browser selection
-browserBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    browserBtns.forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    selectedBrowser = btn.dataset.browser;
+// File picker change
+cookieFileInput.addEventListener('change', () => {
+  const file = cookieFileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    cookieFileContent = e.target.result;
+    cookieFileLabelText.textContent = `✓ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
     signinBtn.disabled = false;
-    signinBtnText.textContent = `Connect via ${capitalize(selectedBrowser)}`;
     authError.classList.add('hidden');
-  });
+  };
+  reader.readAsText(file);
 });
 
-// Sign in
+// Sign in — upload cookie file content
 signinBtn.addEventListener('click', async () => {
-  if (!selectedBrowser) return;
+  if (!cookieFileContent) return;
   signinBtnText.classList.add('hidden');
   signinLoader.classList.remove('hidden');
   signinBtn.disabled = true;
@@ -103,14 +106,12 @@ signinBtn.addEventListener('click', async () => {
     const resp = await fetch(`${API}/auth/signin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ browser: selectedBrowser })
+      body: JSON.stringify({ cookieContent: cookieFileContent })
     });
     const text = await resp.text();
     let data;
-    try { data = JSON.parse(text); } catch (_) { throw new Error('Unexpected server response.'); }
-
+    try { data = JSON.parse(text); } catch (_) { throw new Error('Unexpected server response. Please refresh and try again.'); }
     if (!resp.ok) throw new Error(data.error || 'Sign-in failed');
-
     applyAuthState(data);
   } catch (err) {
     authError.textContent = err.message;
@@ -118,15 +119,16 @@ signinBtn.addEventListener('click', async () => {
   } finally {
     signinBtnText.classList.remove('hidden');
     signinLoader.classList.add('hidden');
-    signinBtn.disabled = !selectedBrowser;
+    signinBtn.disabled = !cookieFileContent;
   }
 });
 
 // Sign out
 signoutBtn.addEventListener('click', async () => {
-  try {
-    await fetch(`${API}/auth/signout`, { method: 'DELETE' });
-  } catch (_) {}
+  try { await fetch(`${API}/auth/signout`, { method: 'DELETE' }); } catch (_) {}
+  cookieFileContent = null;
+  cookieFileLabelText.textContent = 'Choose cookies.txt file…';
+  cookieFileInput.value = '';
   applyAuthState({ connected: false });
 });
 
@@ -135,23 +137,21 @@ function applyAuthState(state) {
     authSigninPanel.classList.add('hidden');
     authConnectedPanel.classList.remove('hidden');
     authConnectedBadge.classList.remove('hidden');
-    authChannelName.textContent = state.channel || 'Connected';
+    authChannelName.textContent = 'Connected';
     authAccountName.textContent = state.channel || 'YouTube Account';
-    authAccountBrowser.textContent = `via ${capitalize(state.browser || 'browser')}`;
+    authAccountBrowser.textContent = 'Connected via cookies.txt';
   } else {
     authSigninPanel.classList.remove('hidden');
     authConnectedPanel.classList.add('hidden');
     authConnectedBadge.classList.add('hidden');
-    selectedBrowser = null;
-    browserBtns.forEach(b => b.classList.remove('selected'));
     signinBtn.disabled = true;
-    signinBtnText.textContent = 'Select a browser above';
   }
 }
 
 function capitalize(str) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 }
+
 
 function formatDuration(secs) {
   if (!secs) return '';
