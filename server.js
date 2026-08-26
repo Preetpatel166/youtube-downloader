@@ -609,6 +609,18 @@ setInterval(() => {
   });
 }, 300000);
 
+// Global error handler — always respond with JSON, never HTML
+app.use((err, req, res, next) => {
+  console.error('[Global Error Handler]', err.message || err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
+// 404 handler — return JSON not HTML
+app.use((req, res) => {
+  res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.path}` });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🎬 YouTube Playlist Downloader running at http://localhost:${PORT}\n`);
   console.log(`📁 Downloads directory: ${DOWNLOADS_DIR}\n`);

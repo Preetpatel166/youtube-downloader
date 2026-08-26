@@ -103,7 +103,7 @@ async function fetchMedia() {
   const rawUrl = playlistUrlInput.value.trim();
 
   if (!rawUrl) { showError('Please paste a YouTube video or playlist URL.'); return; }
-  if (!isValidYouTubeUrl(rawUrl)) { showError('This doesn\'t look like a valid YouTube link. Please enter a YouTube video or playlist URL.'); return; }
+  if (!isValidYouTubeUrl(rawUrl)) { showError("This doesn't look like a valid YouTube link. Please enter a YouTube video or playlist URL."); return; }
 
   setFetchLoading(true);
   playlistSection.classList.add('hidden');
@@ -111,7 +111,15 @@ async function fetchMedia() {
 
   try {
     const resp = await fetch(`${API}/info?url=${encodeURIComponent(rawUrl)}`);
-    const data = await resp.json();
+
+    // Safely parse response — server might return HTML on crashes
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      throw new Error('Server returned an unexpected response. Please refresh the page and try again.');
+    }
 
     if (!resp.ok) throw new Error(data.error || 'Failed to fetch video/playlist info');
 
