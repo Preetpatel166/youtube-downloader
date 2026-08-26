@@ -172,11 +172,12 @@ app.post('/api/download', (req, res) => {
   const { url, quality, playlistTitle, jobId, isSingleVideo } = req.body;
   if (!url || !jobId) return res.status(400).json({ error: 'URL and jobId are required' });
 
+  const safeJobId = (jobId || 'job').replace(/[<>:"/\\|?*]/g, '');
   let outputDir;
   let outputTemplate;
 
   if (isSingleVideo) {
-    outputDir = path.join(DOWNLOADS_DIR, 'YouTube Downloads');
+    outputDir = path.join(DOWNLOADS_DIR, `single_${safeJobId}`);
     outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
   } else {
     // Create clean folder name for this specific playlist
@@ -184,9 +185,9 @@ app.post('/api/download', (req, res) => {
       .replace(/[<>:"/\\|?*]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
-      .substring(0, 80);
+      .substring(0, 50);
 
-    outputDir = path.join(DOWNLOADS_DIR, safeName);
+    outputDir = path.join(DOWNLOADS_DIR, `${safeName}_${safeJobId}`);
     outputTemplate = path.join(outputDir, '%(playlist_index)02d - %(title)s.%(ext)s');
   }
 
@@ -239,18 +240,9 @@ app.post('/api/download', (req, res) => {
     url
   ];
 
-  console.log(`\n[${jobId}] Starting download job for "${playlistTitle}"`);
+  console.log(`\n[${jobId}] Starting concurrent download job for "${playlistTitle}"`);
   console.log(`[${jobId}] Target directory: ${outputDir}`);
   console.log(`[${jobId}] Quality: ${quality}, Format: ${formatArg}`);
-
-  // Cancel any previously active download job to prevent concurrent file locking conflicts
-  Object.keys(jobs).forEach(id => {
-    if (jobs[id] && !jobs[id].isDone && jobs[id].proc) {
-      console.log(`[Job Manager] Cancelling previous running job ${id} before starting ${jobId}`);
-      try { jobs[id].proc.kill('SIGTERM'); } catch (_) {}
-      jobs[id].isDone = true;
-    }
-  });
 
   const proc = spawn(YTDLP_PATH, args, {
     env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
@@ -267,7 +259,8 @@ app.post('/api/download', (req, res) => {
     currentVideo: '',
     totalVideos: 0,
     completedVideos: new Set(),
-    isDone: false
+    isDone: false,
+    createdAt: Date.now()
   };
 
   jobs[jobId] = job;
@@ -513,6 +506,18 @@ app.get('/api/download-file', (req, res) => {
 app.get('/healthz', (req, res) => {
   res.send('OK');
 });
+
+// Periodic cleanup of completed job data older than 2 hours for multi-user optimization
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(jobs).forEach(id => {
+    const job = jobs[id];
+    if (job && job.isDone && job.createdAt && (now - job.createdAt > 7200000)) {
+      console.log(`[Job Manager] Cleaning up expired job record: ${id}`);
+      delete jobs[id];
+    }
+  });
+}, 300000);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🎬 YouTube Playlist Downloader running at http://localhost:${PORT}\n`);
