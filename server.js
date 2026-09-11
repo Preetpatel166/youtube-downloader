@@ -306,6 +306,7 @@ function handleFetchInfo(req, res) {
     '--dump-single-json',
     '--no-warnings',
     '--no-check-certificates',
+    '--extractor-args', 'youtube:player_client=android,web',
     '--js-runtimes', 'node:node',
     ...getCookiesArgs(),
     parsed.url
@@ -483,6 +484,7 @@ app.post('/api/download', (req, res) => {
     '--no-abort-on-error',
     '--windows-filenames',
     '--no-check-certificates',
+    '--extractor-args', 'youtube:player_client=android,web',
     '--js-runtimes', 'node:node',
     ...getCookiesArgs()
   ];

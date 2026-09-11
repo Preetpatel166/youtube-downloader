@@ -133,15 +133,30 @@ class MainActivity : AppCompatActivity() {
                         currentMedia = response.body()
                         displayMediaPreview(currentMedia!!)
                     } else {
-                        val errMsg = response.errorBody()?.string() ?: "Failed to fetch media details"
-                        Toast.makeText(this@MainActivity, "Error: $errMsg", Toast.LENGTH_LONG).show()
+                        val rawError = response.errorBody()?.string() ?: ""
+                        val cleanMsg = try {
+                            val jsonObj = org.json.JSONObject(rawError)
+                            jsonObj.optString("error", rawError)
+                        } catch (_: Exception) {
+                            if (rawError.isNotEmpty()) rawError else "Failed to fetch media details"
+                        }
+
+                        if (cleanMsg.contains("age-restricted", ignoreCase = true) || cleanMsg.contains("Sign in", ignoreCase = true)) {
+                            androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                                .setTitle("🔞 Age-Restricted Video")
+                                .setMessage("YouTube requires age verification for this specific video.\n\nPublic videos, music tracks, podcasts, and playlists download automatically without sign-in!")
+                                .setPositiveButton("OK", null)
+                                .show()
+                        } else {
+                            Toast.makeText(this@MainActivity, cleanMsg, Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     binding.pbLoading.visibility = View.GONE
                     binding.btnFetch.isEnabled = true
-                    Toast.makeText(this@MainActivity, "Network error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivity, "Connection error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             }
         }
