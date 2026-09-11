@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">MediaDL</string>
+    <string name="app_tagline">YouTube Video &amp; Audio Downloader</string>
+    <string name="default_server_url">https://youtube-downloader-12ed.onrender.com/</string>
+    <string name="paste_link_hint">Paste YouTube video or playlist link</string>
+    <string name="btn_fetch">Fetch Media</string>
+    <string name="btn_download">Download Now</string>
+    <string name="quality_title">Select Resolution / Format</string>
+    <string name="storage_permission_rationale">MediaDL needs storage permission to save downloaded videos to your phone.</string>
+</resources>
