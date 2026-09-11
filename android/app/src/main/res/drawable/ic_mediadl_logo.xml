@@ -1,12 +1,79 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="48dp"
     android:height="48dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Outer Squircle with Gradient Background -->
     <path
-        android:fillColor="@color/brand_primary"
-        android:pathData="M23.498,6.186a3.016,3.016 0,0 0,-2.122,-2.136C19.505,3.545 12,3.545 12,3.545s-7.505,0 -9.377,0.505A3.017,3.017 0,0 0,0.502 6.186C0,8.07 0,12 0,12s0,3.93 0.502,5.814a3.016,3.016 0,0 0,2.122 2.136c1.871,0.505 9.376,0.505 9.376,0.505s7.505,0 9.377,-0.505a3.015,3.015 0,0 0,2.122,-2.136C24,15.93 24,12 24,12s0,-3.93 -0.502,-5.814z"/>
+        android:pathData="M10,4 C5.58,4 4,5.58 4,10 L4,38 C4,42.42 5.58,44 10,44 L38,44 C42.42,44 44,42.42 44,38 L44,10 C44,5.58 42.42,4 38,4 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="315"
+                android:startColor="#1E1B4B"
+                android:centerColor="#0F172A"
+                android:endColor="#090D16"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Neon Border Stroke -->
     <path
-        android:fillColor="@color/white"
-        android:pathData="M9.545,15.568V8.432L15.818,12l-6.273,3.568z"/>
+        android:strokeWidth="1.5"
+        android:pathData="M10,4 C5.58,4 4,5.58 4,10 L4,38 C4,42.42 5.58,44 10,44 L38,44 C42.42,44 44,42.42 44,38 L44,10 C44,5.58 42.42,4 38,4 Z">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:angle="45"
+                android:startColor="#6366F1"
+                android:endColor="#06B6D4"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Stylized Geometric "M" Wings -->
+    <path
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,32 L12,16 L20,24">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:angle="90"
+                android:startColor="#6366F1"
+                android:endColor="#818CF8"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <path
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M28,24 L36,16 L36,32">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:angle="90"
+                android:startColor="#06B6D4"
+                android:endColor="#38BDF8"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Center High-Velocity Download Arrow -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M24,12 L24,28 M18,22 L24,29 L30,22"
+        android:strokeWidth="3.5"
+        android:strokeColor="#00E5FF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Bottom Media Tray / Speed Bar -->
+    <path
+        android:pathData="M16,36 L32,36"
+        android:strokeWidth="3"
+        android:strokeColor="#818CF8"
+        android:strokeLineCap="round" />
+
 </vector>
