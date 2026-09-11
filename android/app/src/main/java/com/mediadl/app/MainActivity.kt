@@ -156,7 +156,34 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val response = ApiClient.apiService.getMediaInfo(url)
+                var response = ApiClient.apiService.getMediaInfo(url)
+
+                // If cloud server encountered bot check, attempt auto-fallback to local PC on Wi-Fi
+                if (!response.isSuccessful && ApiClient.currentBaseUrl.contains("onrender.com")) {
+                    val rawErr = response.errorBody()?.string() ?: ""
+                    if (rawErr.contains("bot", ignoreCase = true) || rawErr.contains("sign-in", ignoreCase = true)) {
+                        try {
+                            val localUrl = "http://10.192.216.1:3000/"
+                            val localRetrofit = retrofit2.Retrofit.Builder()
+                                .baseUrl(localUrl)
+                                .client(ApiClient.okHttpClient)
+                                .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+                                .build()
+                            val localService = localRetrofit.create(MediaDlApiService::class.java)
+                            val localResp = localService.getMediaInfo(url)
+                            if (localResp.isSuccessful && localResp.body() != null) {
+                                response = localResp
+                                ApiClient.currentBaseUrl = localUrl
+                                withContext(Dispatchers.Main) {
+                                    binding.chipServerStatus.text = "Local PC (Wi-Fi)"
+                                    binding.chipServerStatus.setTextColor(getColor(R.color.brand_cyan))
+                                    Toast.makeText(this@MainActivity, "Connected via Local PC server (bot check bypassed!)", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
                     binding.pbLoading.visibility = View.GONE
                     binding.btnFetch.isEnabled = true
