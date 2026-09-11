@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: youtube-downloader
+    name: mediadl
     runtime: docker
     plan: free
     region: oregon

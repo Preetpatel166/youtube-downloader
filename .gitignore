@@ -4,6 +4,12 @@ downloads/
 *.part
 *.temp.mp4
 *.ytdl
+*.mp4
+*.m4a
+*.webm
+*.mp3
 test_out*
 .DS_Store
 cookies.txt
+auth_state.json
+*.log

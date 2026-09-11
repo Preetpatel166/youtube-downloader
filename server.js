@@ -15,7 +15,7 @@ function resolveTool(toolName, winExeName) {
   const localLinuxPath = path.join(__dirname, 'tools', toolName);
   if (fs.existsSync(localLinuxPath)) return localLinuxPath;
 
-  return toolName; // In system PATH (e.g. Linux on Render / Docker)
+  return toolName; // In system PATH
 }
 
 const YTDLP_PATH = resolveTool('yt-dlp', 'yt-dlp.exe');
@@ -36,33 +36,44 @@ const COOKIES_PATH = path.join(__dirname, 'cookies.txt');
 const AUTH_STATE_PATH = path.join(__dirname, 'auth_state.json');
 
 // ─────────────────────────────────────────────
-// Auth state helpers
+// Auth State Management
 // ─────────────────────────────────────────────
 function loadAuthState() {
   try {
     if (fs.existsSync(AUTH_STATE_PATH)) {
-      return JSON.parse(fs.readFileSync(AUTH_STATE_PATH, 'utf8'));
+      const saved = JSON.parse(fs.readFileSync(AUTH_STATE_PATH, 'utf8'));
+      if (saved.connected) return saved;
     }
   } catch (_) {}
-  return { connected: false, browser: null, channel: null, connectedAt: null };
+
+  // Auto-detect existing cookies.txt in workspace
+  if (fs.existsSync(COOKIES_PATH) && fs.statSync(COOKIES_PATH).size > 100) {
+    return {
+      connected: true,
+      mode: 'manual',
+      browser: 'cookies.txt',
+      updatedAt: new Date().toISOString()
+    };
+  }
+  return { connected: false, mode: 'guest', browser: null, updatedAt: null };
 }
 
 function saveAuthState(state) {
-  try { fs.writeFileSync(AUTH_STATE_PATH, JSON.stringify(state, null, 2), 'utf8'); } catch (_) {}
+  try {
+    fs.writeFileSync(AUTH_STATE_PATH, JSON.stringify(state, null, 2), { encoding: 'utf8', mode: 0o600 });
+  } catch (e) {
+    console.error('[Auth State Error]', e.message);
+  }
 }
 
 let authState = loadAuthState();
 
-const app = express();
-
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Helper: get cookies args based on current auth state
+// Helper: build yt-dlp cookie arguments dynamically
 function getCookiesArgs() {
-  // If signed in via browser, use cookies.txt (exported from browser)
-  if (authState.connected && fs.existsSync(COOKIES_PATH)) {
+  if (authState.connected && authState.mode === 'browser' && authState.browser) {
+    return ['--cookies-from-browser', authState.browser];
+  }
+  if (fs.existsSync(COOKIES_PATH) && fs.statSync(COOKIES_PATH).size > 100) {
     return ['--cookies', COOKIES_PATH];
   }
   return [];
@@ -71,70 +82,160 @@ function getCookiesArgs() {
 // Global active jobs store
 const jobs = {};
 
-// ─────────────────────────────────────────────
-// GET /api/auth/status — current sign-in state
-// ─────────────────────────────────────────────
-app.get('/api/auth/status', (req, res) => {
-  res.json(authState);
-});
+const app = express();
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ─────────────────────────────────────────────
-// POST /api/auth/signin — accept uploaded cookies.txt content
+// Auth Endpoints
 // ─────────────────────────────────────────────
-app.post('/api/auth/signin', (req, res) => {
+
+// GET /api/auth/status
+app.get('/api/auth/status', (req, res) => {
+  res.json({
+    connected: !!authState.connected,
+    mode: authState.mode || 'guest',
+    browser: authState.browser || null,
+    updatedAt: authState.updatedAt || null
+  });
+});
+
+// POST /api/auth/select-browser
+// Body: { browser: 'chrome' | 'edge' | 'firefox' | 'brave' | 'opera' | 'cookies_file' | 'none' }
+app.post('/api/auth/select-browser', (req, res) => {
+  const { browser } = req.body;
+  const allowed = ['chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi', 'cookies_file', 'none'];
+  
+  if (!browser || !allowed.includes(browser.toLowerCase())) {
+    return res.status(400).json({ error: `Invalid browser. Supported: ${allowed.join(', ')}` });
+  }
+
+  const selected = browser.toLowerCase();
+
+  // If user chooses 'cookies_file'
+  if (selected === 'cookies_file') {
+    if (fs.existsSync(COOKIES_PATH) && fs.statSync(COOKIES_PATH).size > 100) {
+      authState = { connected: true, mode: 'manual', browser: 'cookies.txt', updatedAt: new Date().toISOString() };
+      saveAuthState(authState);
+      return res.json({ success: true, message: 'Switched to Active Session (cookies.txt)', ...authState });
+    } else {
+      return res.status(400).json({ error: 'No saved cookies.txt found in project directory.' });
+    }
+  }
+
+  // If user chooses 'none', switch back to guest mode
+  if (selected === 'none') {
+    authState = { connected: false, mode: 'guest', browser: null, updatedAt: new Date().toISOString() };
+    saveAuthState(authState);
+    return res.json({ success: true, message: 'Switched to Guest Mode (Anonymous)', ...authState });
+  }
+
+  // Guard for cloud / server environments (Render / Linux Docker)
+  if (process.platform !== 'win32' && process.platform !== 'darwin') {
+    return res.status(400).json({
+      error: `Browser profile extraction is only supported when running locally on Windows/Mac. On Render/Cloud, please use the "cookies.txt" upload or Guest Mode.`
+    });
+  }
+
+  // Probe yt-dlp with --cookies-from-browser to test if cookies can be read
+  console.log(`[Auth] Testing cookie extraction for browser: "${selected}"`);
+  const probe = spawn(YTDLP_PATH, ['--cookies-from-browser', selected, '--dump-user-agent']);
+  let probeErr = '';
+  let isDone = false;
+
+  const timeout = setTimeout(() => {
+    if (!isDone) {
+      isDone = true;
+      try { probe.kill('SIGKILL'); } catch (_) {}
+      return res.status(504).json({ error: 'Browser probe timed out. Make sure the browser is responsive.' });
+    }
+  }, 10000);
+
+  probe.stderr.on('data', (d) => { probeErr += d.toString(); });
+
+  probe.on('close', (code) => {
+    if (isDone) return;
+    isDone = true;
+    clearTimeout(timeout);
+
+    if (code !== 0) {
+      let friendlyError = `Could not extract cookies from ${selected}.`;
+      if (probeErr.includes('Could not copy Chrome cookie database') || probeErr.includes('database is locked') || probeErr.includes('Permission denied')) {
+        friendlyError = `${selected.toUpperCase()} is currently open in the background and locking its cookie file. Please close all ${selected.toUpperCase()} windows and try again, OR use the active cookies.txt session.`;
+      } else if (probeErr.includes('Failed to decrypt with DPAPI')) {
+        friendlyError = `${selected.toUpperCase()} uses Windows App-Bound encryption. Please close Edge and connect, or use the active cookies.txt session.`;
+      } else if (probeErr.includes('could not find')) {
+        friendlyError = `No installation or profile found for ${selected}.`;
+      }
+
+      console.warn(`[Auth Warning] Browser probe failed for ${selected}: ${friendlyError}`);
+      return res.status(400).json({
+        error: friendlyError,
+        raw: probeErr
+      });
+    }
+
+    authState = {
+      connected: true,
+      mode: 'browser',
+      browser: selected,
+      updatedAt: new Date().toISOString()
+    };
+    saveAuthState(authState);
+    console.log(`[Auth Success] Connected via browser: ${selected}`);
+    res.json({ success: true, message: `Successfully connected via ${selected.toUpperCase()}`, ...authState });
+  });
+});
+
+// POST /api/auth/upload-cookies (Fallback manual upload)
+app.post('/api/auth/upload-cookies', (req, res) => {
   const { cookieContent } = req.body;
 
   if (!cookieContent || typeof cookieContent !== 'string') {
-    return res.status(400).json({ error: 'No cookie content provided. Please upload a cookies.txt file.' });
+    return res.status(400).json({ error: 'No cookie content provided.' });
   }
 
-  // Basic validation: Netscape cookie format starts with "# Netscape HTTP Cookie File" header
+  // Basic validation: Netscape cookie format check
   const firstLine = cookieContent.trim().split('\n')[0];
   if (!firstLine.includes('Netscape') && !firstLine.startsWith('#') && !cookieContent.includes('\t')) {
-    return res.status(400).json({ error: 'Invalid cookies.txt format. Please export from the "Get cookies.txt LOCALLY" browser extension.' });
+    return res.status(400).json({ error: 'Invalid cookies.txt format. Please provide a standard Netscape cookie file.' });
   }
 
-  // Check that it contains YouTube cookies
-  if (!cookieContent.includes('youtube.com') && !cookieContent.includes('.youtube.com')) {
-    return res.status(400).json({ error: 'No YouTube cookies found in the file. Make sure you are signed into YouTube before exporting.' });
-  }
-
-  // Save the cookies file
   try {
-    fs.writeFileSync(COOKIES_PATH, cookieContent, 'utf8');
-    console.log(`[Auth] Cookies saved (${cookieContent.length} bytes)`);
+    fs.writeFileSync(COOKIES_PATH, cookieContent, { encoding: 'utf8', mode: 0o600 });
+    console.log(`[Auth] Fallback cookies.txt saved (${cookieContent.length} bytes)`);
   } catch (e) {
-    return res.status(500).json({ error: 'Failed to save cookies: ' + e.message });
+    return res.status(500).json({ error: 'Failed to write cookies file: ' + e.message });
   }
 
-  // Set auth state and return success
   authState = {
     connected: true,
-    browser: 'browser',
-    channel: 'YouTube Account',
-    connectedAt: new Date().toISOString()
+    mode: 'manual',
+    browser: 'cookies.txt',
+    updatedAt: new Date().toISOString()
   };
   saveAuthState(authState);
 
-  console.log('[Auth] Successfully connected via cookies.txt upload');
-  res.json({ success: true, ...authState });
+  res.json({ success: true, message: 'Connected via uploaded cookies.txt', ...authState });
 });
 
-// ─────────────────────────────────────────────
 // DELETE /api/auth/signout
-// ─────────────────────────────────────────────
 app.delete('/api/auth/signout', (req, res) => {
   try {
     if (fs.existsSync(COOKIES_PATH)) fs.unlinkSync(COOKIES_PATH);
   } catch (_) {}
-  authState = { connected: false, browser: null, channel: null, connectedAt: null };
+
+  authState = { connected: false, mode: 'guest', browser: null, updatedAt: null };
   saveAuthState(authState);
-  console.log('[Auth] Signed out, cookies deleted.');
-  res.json({ success: true });
+  console.log('[Auth] Disconnected session, switched to Guest mode.');
+  res.json({ success: true, message: 'Disconnected successfully.' });
 });
 
-
-// Helper: parse and normalize YouTube URL (handles youtu.be, shorts, radio mixes, playlists)
+// ─────────────────────────────────────────────
+// URL Parsing Helper
+// ─────────────────────────────────────────────
 function parseYouTubeUrl(rawUrl) {
   try {
     const trimmed = (rawUrl || '').trim();
@@ -168,7 +269,7 @@ function parseYouTubeUrl(rawUrl) {
       const videoId = u.searchParams.get('v');
       const listId = u.searchParams.get('list') || '';
 
-      // If it's a mix/radio or any non-PL list attached to a watch link, clean it to the single video
+      // Non-standard or radio mix lists attached to a video link: treat as single video
       if (videoId && (listId.startsWith('RD') || u.searchParams.has('start_radio') || !listId.startsWith('PL'))) {
         return {
           url: `https://www.youtube.com/watch?v=${videoId}`,
@@ -192,7 +293,7 @@ function parseYouTubeUrl(rawUrl) {
 }
 
 // ─────────────────────────────────────────────
-// GET /api/playlist-info?url=... & /api/info?url=...
+// GET /api/info — Fetch Video / Playlist Info
 // ─────────────────────────────────────────────
 function handleFetchInfo(req, res) {
   const { url } = req.query;
@@ -205,12 +306,12 @@ function handleFetchInfo(req, res) {
     '--dump-single-json',
     '--no-warnings',
     '--no-check-certificates',
-    '--extractor-args', 'youtube:player_client=android',
+    '--js-runtimes', 'node:node',
     ...getCookiesArgs(),
     parsed.url
   ];
 
-  console.log(`[Fetch Info] Request for URL: "${url}" -> Parsed: "${parsed.url}" (isPlaylist: ${parsed.isPlaylist})`);
+  console.log(`[Fetch Info] URL: "${url}" -> Parsed: "${parsed.url}" (Playlist: ${parsed.isPlaylist})`);
 
   const proc = spawn(YTDLP_PATH, args);
   let output = '';
@@ -221,7 +322,7 @@ function handleFetchInfo(req, res) {
     if (!isDone) {
       isDone = true;
       try { proc.kill('SIGKILL'); } catch (_) {}
-      res.status(504).json({ error: 'Request timed out while fetching video details from YouTube. Please check the URL and try again.' });
+      res.status(504).json({ error: 'Request timed out while contacting YouTube. Please try again.' });
     }
   }, 60000);
 
@@ -234,11 +335,11 @@ function handleFetchInfo(req, res) {
     clearTimeout(timeout);
 
     if (code !== 0) {
-      let cleanError = 'Failed to fetch video or playlist info';
+      let cleanError = 'Failed to fetch details from YouTube.';
       if (errOutput.includes('This video is unavailable')) {
         cleanError = 'This video is unavailable or has been removed from YouTube.';
       } else if (errOutput.includes('Private video')) {
-        cleanError = 'This video is private on YouTube.';
+        cleanError = 'This video or playlist is private. Connect a signed-in browser to access it.';
       } else if (errOutput.includes('Sign in to confirm')) {
         cleanError = 'YouTube requires sign-in for this age-restricted video.';
       } else if (errOutput.trim()) {
@@ -247,6 +348,7 @@ function handleFetchInfo(req, res) {
       }
       return res.status(400).json({ error: cleanError, details: errOutput });
     }
+
     try {
       const data = JSON.parse(output);
       const isPlaylist = data._type === 'playlist' || (Array.isArray(data.entries) && data.entries.length > 0);
@@ -256,7 +358,7 @@ function handleFetchInfo(req, res) {
           index: i + 1,
           id: v.id,
           title: v.title || `Video ${i + 1}`,
-          duration: v.duration,
+          duration: v.duration || 0,
           thumbnail: v.thumbnails?.[0]?.url || (v.id ? `https://img.youtube.com/vi/${v.id}/mqdefault.jpg` : ''),
           url: v.url || (v.id ? `https://www.youtube.com/watch?v=${v.id}` : parsed.url)
         }));
@@ -290,19 +392,19 @@ function handleFetchInfo(req, res) {
         });
       }
     } catch (e) {
-      res.status(500).json({ error: 'Failed to parse data', details: e.message });
+      res.status(500).json({ error: 'Failed to parse YouTube metadata', details: e.message });
     }
   });
 }
 
-app.get('/api/playlist-info', handleFetchInfo);
 app.get('/api/info', handleFetchInfo);
+app.get('/api/playlist-info', handleFetchInfo);
 
 // ─────────────────────────────────────────────
-// POST /api/download
+// POST /api/download — Concurrent Download Engine
 // ─────────────────────────────────────────────
 app.post('/api/download', (req, res) => {
-  const { url, quality, playlistTitle, jobId, isSingleVideo } = req.body;
+  const { url, quality, playlistTitle, jobId, isSingleVideo, selectedIndices } = req.body;
   if (!url || !jobId) return res.status(400).json({ error: 'URL and jobId are required' });
 
   const parsed = parseYouTubeUrl(url);
@@ -317,7 +419,6 @@ app.post('/api/download', (req, res) => {
     outputDir = path.resolve(DOWNLOADS_DIR, 'YouTube Downloads');
     outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
   } else {
-    // Create clean folder name for this specific playlist
     const safeName = (playlistTitle || 'YouTube Playlist')
       .replace(/[<>:"/\\|?*]/g, '')
       .replace(/\s+/g, ' ')
@@ -328,10 +429,15 @@ app.post('/api/download', (req, res) => {
     outputTemplate = path.join(outputDir, '%(playlist_index|autonumber)02d - %(title)s.%(ext)s');
   }
 
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+  if (!fs.existsSync(outputDir)) {
+    try { fs.mkdirSync(outputDir, { recursive: true }); } catch (_) {}
+  }
 
-  // Format selectors with resilient fallbacks prioritizing H.264 + AAC for 100% Windows playback compatibility
+  // Format selectors
   let formatArg;
+  let isAudioOnly = false;
+  let audioFormat = 'mp3';
+
   switch (quality) {
     case '4k':
       formatArg = 'bestvideo[height<=2160]+bestaudio/best[height<=2160]/best';
@@ -351,16 +457,24 @@ app.post('/api/download', (req, res) => {
     case '360p':
       formatArg = 'bestvideo[height<=360]+bestaudio/best[height<=360]/best';
       break;
-    case 'audio':
+    case 'audio_mp3':
+      isAudioOnly = true;
+      audioFormat = 'mp3';
+      formatArg = 'bestaudio/best';
+      break;
+    case 'audio_m4a':
+      isAudioOnly = true;
+      audioFormat = 'm4a';
       formatArg = 'bestaudio[ext=m4a]/bestaudio/best';
       break;
     default:
-      formatArg = 'bestvideo+bestaudio/best';
+      formatArg = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
   }
 
   const args = [
     '--ffmpeg-location', FFMPEG_PATH,
     '--format', formatArg,
+    '--format-sort', 'res,fps',
     '--output', outputTemplate,
     '--newline',
     '--progress',
@@ -368,23 +482,38 @@ app.post('/api/download', (req, res) => {
     '--ignore-errors',
     '--no-abort-on-error',
     '--windows-filenames',
-    isSingle ? '--no-playlist' : '--yes-playlist',
-    '--merge-output-format', 'mp4',
     '--no-check-certificates',
-    '--extractor-args', 'youtube:player_client=android',
-    ...getCookiesArgs(),
-    targetUrl
+    '--js-runtimes', 'node:node',
+    ...getCookiesArgs()
   ];
 
-  console.log(`\n[${jobId}] Starting concurrent download job for "${playlistTitle || 'YouTube'}"`);
-  console.log(`[${jobId}] Target directory: ${outputDir}`);
-  console.log(`[${jobId}] Quality: ${quality}, Format: ${formatArg}`);
+  if (isAudioOnly) {
+    args.push('-x');
+    args.push('--audio-format', audioFormat);
+    args.push('--audio-quality', '0');
+  } else {
+    args.push('--merge-output-format', 'mp4');
+  }
+
+  if (isSingle) {
+    args.push('--no-playlist');
+  } else {
+    args.push('--yes-playlist');
+    if (Array.isArray(selectedIndices) && selectedIndices.length > 0) {
+      args.push('--playlist-items', selectedIndices.join(','));
+    }
+  }
+
+  args.push(targetUrl);
+
+  console.log(`\n[${jobId}] Starting download job for "${playlistTitle || 'YouTube'}"`);
+  console.log(`[${jobId}] Destination: ${outputDir}`);
+  console.log(`[${jobId}] Format: ${formatArg}`);
 
   const proc = spawn(YTDLP_PATH, args, {
     env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
   });
 
-  // Job object to keep SSE state and broadcast
   const job = {
     jobId,
     proc,
@@ -416,7 +545,7 @@ app.post('/api/download', (req, res) => {
       line = line.trim();
       if (!line) return;
 
-      // Item counter: [download] Downloading item 3 of 69
+      // Item counter: [download] Downloading item 2 of 10
       const itemMatch = line.match(/Downloading (?:item|video) (\d+) of (\d+)/i);
       if (itemMatch) {
         job.currentIndex = parseInt(itemMatch[1]);
@@ -425,7 +554,7 @@ app.post('/api/download', (req, res) => {
         return;
       }
 
-      // Destination: [download] Destination: ...\01 - Lec-1.f398.mp4 or Destination: ...\VideoTitle.f398.mp4
+      // Destination: [download] Destination: ...\01 - Title.f137.mp4
       const destMatch = line.match(/Destination: .*[\\\/](\d+)\s*-\s*(.+?)(?:\.[a-zA-Z0-9_-]+)*\.[a-zA-Z0-9]+$/i);
       if (destMatch) {
         job.currentIndex = parseInt(destMatch[1]) || job.currentIndex;
@@ -442,7 +571,7 @@ app.post('/api/download', (req, res) => {
         return;
       }
 
-      // Progress line: [download]  45.3% of  123.45MiB at  2.50MiB/s ETA 00:30
+      // Progress line: [download]  56.2% of  120.00MiB at  4.50MiB/s ETA 00:15
       const progMatch = line.match(/\[download\]\s+([\d.]+)%\s+of\s+([^\s]+)\s+at\s+([^\s]+)\s+ETA\s+([^\s]+)/);
       if (progMatch) {
         broadcast({
@@ -466,8 +595,8 @@ app.post('/api/download', (req, res) => {
         return;
       }
 
-      // Merger
-      if (line.includes('[Merger]') || line.includes('Merging formats')) {
+      // Merger or Audio Extraction
+      if (line.includes('[Merger]') || line.includes('Merging formats') || line.includes('[ExtractAudio]')) {
         broadcast({ type: 'merging', index: job.currentIndex, title: job.currentVideo });
         return;
       }
@@ -495,16 +624,30 @@ app.post('/api/download', (req, res) => {
 
   proc.on('close', (code) => {
     job.isDone = true;
-    console.log(`[${jobId}] Download process finished with exit code ${code}`);
+    console.log(`[${jobId}] Job finished with code ${code}`);
 
-    // Auto cleanup leftover temp files (.part, .temp.mp4, .f*.mp4, .f*.m4a)
     cleanupTempFiles(outputDir);
 
+    let completedFiles = [];
+    try {
+      if (fs.existsSync(outputDir)) {
+        completedFiles = fs.readdirSync(outputDir).filter(f => {
+          return !f.endsWith('.part') &&
+                 !f.endsWith('.temp.mp4') &&
+                 !f.endsWith('.ytdl') &&
+                 !/\.f\d+\.(mp4|m4a|webm)$/i.test(f);
+        });
+      }
+    } catch (_) {}
+
     broadcast({
-      type: code === 0 ? 'done' : 'done',
-      message: code === 0 ? 'All downloads complete!' : 'Download finished'
+      type: 'done',
+      code,
+      message: code === 0 ? 'All downloads complete!' : 'Download process finished',
+      outputDir,
+      files: completedFiles
     });
-    // Close clients
+
     job.clients.forEach(c => {
       try { c.end(); } catch (_) {}
     });
@@ -514,7 +657,7 @@ app.post('/api/download', (req, res) => {
   res.json({ status: 'started', outputDir });
 });
 
-// Helper: cleanup temp leftover files
+// Helper: cleanup leftover temporary files (.part, .temp.mp4, etc.)
 function cleanupTempFiles(dir) {
   try {
     if (!fs.existsSync(dir)) return;
@@ -539,7 +682,7 @@ function cleanupTempFiles(dir) {
 }
 
 // ─────────────────────────────────────────────
-// GET /api/progress/:jobId  — SSE stream
+// GET /api/progress/:jobId — SSE Stream
 // ─────────────────────────────────────────────
 app.get('/api/progress/:jobId', (req, res) => {
   const { jobId } = req.params;
@@ -551,13 +694,13 @@ app.get('/api/progress/:jobId', (req, res) => {
   res.flushHeaders();
 
   if (!job) {
-    res.write(`data: ${JSON.stringify({ type: 'error', message: 'Job not found' })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: 'Job record not found' })}\n\n`);
     return res.end();
   }
 
   job.clients.add(res);
 
-  // Send history events to catch up
+  // Send history events
   job.history.forEach(evt => {
     try { res.write(`data: ${JSON.stringify(evt)}\n\n`); } catch (_) {}
   });
@@ -602,11 +745,11 @@ app.get('/api/open-folder', (req, res) => {
     spawn('explorer.exe', [targetDir], { detached: true, stdio: 'ignore' }).unref();
     return res.json({ status: 'opened', path: targetDir });
   }
-  res.json({ status: 'unsupported_platform', message: 'Local folder open is only supported on Windows client' });
+  res.json({ status: 'unsupported_platform', message: 'Explorer launch is supported on Windows' });
 });
 
 // ─────────────────────────────────────────────
-// Cloud download support: list completed files & download directly to browser
+// GET /api/files/:jobId — List downloaded files
 // ─────────────────────────────────────────────
 app.get('/api/files/:jobId', (req, res) => {
   const { jobId } = req.params;
@@ -627,6 +770,9 @@ app.get('/api/files/:jobId', (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// GET /api/download-file
+// ─────────────────────────────────────────────
 app.get('/api/download-file', (req, res) => {
   const { jobId, filename } = req.query;
   const job = jobs[jobId];
@@ -641,36 +787,37 @@ app.get('/api/download-file', (req, res) => {
   res.download(filePath, safeFilename);
 });
 
-// Health check for Render
+// ─────────────────────────────────────────────
+// GET /healthz
+// ─────────────────────────────────────────────
 app.get('/healthz', (req, res) => {
-  res.send('OK');
+  res.json({ status: 'ok', ytdlp: YTDLP_PATH, ffmpeg: FFMPEG_PATH, downloadsDir: DOWNLOADS_DIR });
 });
 
-// Periodic cleanup of completed job data older than 2 hours for multi-user optimization
+// Periodic cleanup of completed job data older than 2 hours
 setInterval(() => {
   const now = Date.now();
   Object.keys(jobs).forEach(id => {
     const job = jobs[id];
     if (job && job.isDone && job.createdAt && (now - job.createdAt > 7200000)) {
-      console.log(`[Job Manager] Cleaning up expired job record: ${id}`);
       delete jobs[id];
     }
   });
 }, 300000);
 
-// Global error handler — always respond with JSON, never HTML
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('[Global Error Handler]', err.message || err);
+  console.error('[Global Error]', err.message || err);
   if (res.headersSent) return next(err);
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
-// 404 handler — return JSON not HTML
+// 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.path}` });
+  res.status(404).json({ error: `Not found: ${req.method} ${req.path}` });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🎬 YouTube Playlist Downloader running at http://localhost:${PORT}\n`);
-  console.log(`📁 Downloads directory: ${DOWNLOADS_DIR}\n`);
+  console.log(`\n🎬 MediaDL YouTube Downloader running at http://localhost:${PORT}`);
+  console.log(`📁 Target Downloads directory: ${DOWNLOADS_DIR}\n`);
 });

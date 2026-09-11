@@ -1,305 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YouTube Video & Playlist Downloader</title>
-  <meta name="description" content="Download YouTube videos and playlists at any quality — 720p, 1080p, 4K — directly to your Downloads folder." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="High-performance YouTube Video & Playlist Downloader with native browser cookie integration, 4K resolution support, and real-time download streaming.">
+  <title>MediaDL — YouTube Video &amp; Playlist Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23ff0033%22/><polygon points=%2240,30 70,50 40,70%22 fill=%22white%22/></svg>">
 </head>
 <body>
-  <!-- Animated background orbs -->
-  <div class="bg-orbs" aria-hidden="true">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-  </div>
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
 
-  <div class="app-wrapper">
-
+  <div class="app-container">
     <!-- ── HEADER ── -->
-    <header class="header">
-      <div class="header-logo">
-        <div class="logo-icon" aria-hidden="true">
-          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="20" r="19" stroke="url(#lg1)" stroke-width="2"/>
-            <path d="M15 13.5L29 20L15 26.5V13.5Z" fill="url(#lg2)"/>
-            <defs>
-              <linearGradient id="lg1" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#a855f7"/>
-                <stop offset="1" stop-color="#06b6d4"/>
-              </linearGradient>
-              <linearGradient id="lg2" x1="15" y1="13.5" x2="29" y2="26.5" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#a855f7"/>
-                <stop offset="1" stop-color="#06b6d4"/>
-              </linearGradient>
-            </defs>
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
           </svg>
         </div>
         <div>
-          <h1 class="logo-title">MediaDL</h1>
-          <p class="logo-sub">YouTube Video &amp; Playlist Downloader</p>
+          <h1 class="brand-title">MediaDL</h1>
+          <p class="brand-subtitle">YouTube Video &amp; Playlist Downloader</p>
         </div>
       </div>
-      <div class="header-badge">
-        <span class="badge-dot"></span>
-        <span>Local &amp; Private</span>
+      <div class="header-status">
+        <button id="btn-quick-open-folder" class="btn-icon-subtle" title="Open Downloads Folder">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Downloads</span>
+        </button>
+        <div class="badge-pill">
+          <span class="pulse-dot"></span>
+          <span>Local &amp; Private</span>
+        </div>
       </div>
     </header>
 
-    <!-- ── MAIN CONTENT ── -->
-    <main>
-
-
-
-      <!-- YouTube Account Card -->
-      <section class="card auth-card" id="auth-card">
-        <div class="auth-header">
-          <div class="auth-icon-wrap">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
-              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+    <!-- ── AUTH / BROWSER SELECTOR CARD ── -->
+    <section class="card auth-card" id="auth-section">
+      <div class="card-header">
+        <div class="header-left">
+          <div class="icon-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
           </div>
-          <div class="auth-title-group">
-            <h2 class="auth-title">YouTube Account</h2>
-            <p class="auth-sub">Sign in to unlock age-restricted &amp; private videos</p>
-          </div>
-          <div id="auth-connected-badge" class="auth-badge auth-badge-on hidden">
-            <span class="auth-badge-dot"></span>
-            <span id="auth-channel-name">Connected</span>
+          <div>
+            <h2 class="card-title">YouTube Authentication</h2>
+            <p class="card-desc">Connect your browser session to download age-restricted, private, and 1080p+ videos</p>
           </div>
         </div>
+        <div class="status-indicator-badge" id="auth-status-badge">
+          <span class="status-dot"></span>
+          <span id="auth-status-text">Checking…</span>
+        </div>
+      </div>
 
-        <!-- Sign-in panel -->
-        <div id="auth-signin-panel">
-          <!-- Steps -->
-          <div class="auth-steps">
-            <div class="auth-step">
-              <span class="auth-step-num">1</span>
-              <div class="auth-step-body">
-                <p class="auth-step-title">Install the browser extension</p>
-                <div class="auth-step-links">
-                  <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener" class="ext-link">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><circle cx="12" cy="12" r="10" stroke="#4285f4" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#4285f4"/><path d="M12 8h8.6" stroke="#ea4335" stroke-width="2"/></svg>
-                    Chrome / Edge
-                  </a>
-                  <a href="https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/" target="_blank" rel="noopener" class="ext-link">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#ff6611"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 110-16 8 8 0 010 16z"/></svg>
-                    Firefox
-                  </a>
-                </div>
-                <p class="auth-step-note">Free &amp; open-source — no account needed.</p>
-              </div>
-            </div>
-            <div class="auth-step">
-              <span class="auth-step-num">2</span>
-              <div class="auth-step-body">
-                <p class="auth-step-title">Go to <a href="https://www.youtube.com" target="_blank" rel="noopener" class="inline-link">youtube.com</a> and sign in to your account</p>
-              </div>
-            </div>
-            <div class="auth-step">
-              <span class="auth-step-num">3</span>
-              <div class="auth-step-body">
-                <p class="auth-step-title">Click the extension icon → click <strong>Export</strong> → save <code>cookies.txt</code></p>
-              </div>
-            </div>
-            <div class="auth-step">
-              <span class="auth-step-num">4</span>
-              <div class="auth-step-body">
-                <p class="auth-step-title">Upload your <code>cookies.txt</code> file below</p>
-                <label class="cookie-upload-label" id="cookie-upload-label" for="cookie-file-input">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span id="cookie-file-label-text">Choose cookies.txt file…</span>
-                </label>
-                <input type="file" id="cookie-file-input" accept=".txt,text/plain" class="hidden" />
-              </div>
-            </div>
+      <div class="auth-controls">
+        <div class="browser-selector-row">
+          <div class="custom-select-wrap">
+            <label for="browser-select" class="sr-only">Choose Browser</label>
+            <select id="browser-select" class="browser-select">
+              <option value="cookies_file" selected>🍪 Saved Session (cookies.txt — Active)</option>
+              <option value="edge">🟦 Microsoft Edge (Close Edge to link)</option>
+              <option value="chrome">🔴 Google Chrome</option>
+              <option value="firefox">🦊 Mozilla Firefox</option>
+              <option value="brave">🦁 Brave Browser</option>
+              <option value="none">🌐 Guest Mode (Anonymous)</option>
+            </select>
           </div>
-
-          <div class="auth-actions">
-            <button id="signin-btn" class="btn btn-signin" disabled>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-              <span id="signin-btn-text">Connect YouTube Account</span>
-              <div class="btn-loader hidden" id="signin-loader"></div>
-            </button>
-          </div>
-          <p id="auth-error" class="error-msg hidden"></p>
-          <p class="auth-privacy-note">🔒 Your cookies stay on this server only. No data is sent anywhere else.</p>
+          <button id="btn-connect-browser" class="btn btn-primary btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            <span>Connect Profile</span>
+          </button>
+          <button id="btn-disconnect-auth" class="btn btn-outline btn-sm hidden">
+            <span>Disconnect</span>
+          </button>
         </div>
 
-        <!-- Connected panel -->
-        <div id="auth-connected-panel" class="hidden">
-          <div class="auth-connected-info">
-            <div class="auth-account-row">
-              <div class="auth-avatar">
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-              </div>
-              <div>
-                <p class="auth-account-name" id="auth-account-name">YouTube Account</p>
-                <p class="auth-account-browser" id="auth-account-browser">Connected via cookies.txt</p>
-              </div>
+        <p class="auth-tip-note" id="auth-tip-note">
+          💡 <strong>Zero Setup:</strong> Reads your signed-in YouTube session directly from your chosen browser. No passwords entered, no bot detection.
+        </p>
+
+        <!-- Manual cookies.txt accordion toggle -->
+        <div class="accordion-toggle-wrap">
+          <button type="button" class="accordion-btn" id="toggle-manual-cookies" aria-expanded="false">
+            <span>Need manual cookies.txt upload? (Advanced / Servers)</span>
+            <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="accordion-content hidden" id="manual-cookies-panel">
+            <div class="file-upload-zone" id="cookies-dropzone">
+              <input type="file" id="cookie-file-input" accept=".txt,text/plain" class="hidden">
+              <label for="cookie-file-input" class="file-upload-label">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span id="cookie-file-name">Click or drag &amp; drop a standard cookies.txt file here</span>
+              </label>
             </div>
-            <button id="signout-btn" class="btn btn-ghost btn-sm">Sign Out</button>
           </div>
-          <p class="auth-connected-note">✅ Age-restricted and private videos are now unlocked</p>
         </div>
-      </section>
+      </div>
+    </section>
 
-
-      <!-- Input Section -->
-      <section class="card input-card" id="input-section">
-        <div class="section-label">
-          <span class="step-num">01</span>
-          <span>Paste YouTube Video or Playlist URL</span>
-        </div>
-        <div class="url-input-wrap">
-          <div class="url-icon" aria-hidden="true">
+    <!-- ── INPUT CARD ── -->
+    <section class="card url-card">
+      <form id="url-form" class="url-form" onsubmit="return false;">
+        <label for="url-input" class="sr-only">YouTube URL</label>
+        <div class="input-glow-wrap">
+          <div class="input-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </div>
           <input
             type="url"
-            id="playlist-url"
+            id="url-input"
             class="url-input"
-            placeholder="https://www.youtube.com/watch?v=... or playlist link"
+            placeholder="Paste YouTube video or playlist link (e.g. https://www.youtube.com/watch?v=...)"
             autocomplete="off"
             spellcheck="false"
+            required
           />
-          <button id="fetch-btn" class="btn btn-primary" aria-label="Fetch video or playlist info">
-            <span id="fetch-btn-text">Fetch Info</span>
-            <div class="btn-loader hidden" id="fetch-loader"></div>
+          <div class="input-actions">
+            <button type="button" id="btn-paste" class="btn-tool" title="Paste from clipboard">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              <span>Paste</span>
+            </button>
+            <button type="button" id="btn-clear" class="btn-tool hidden" title="Clear input">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-fetch" class="btn btn-primary btn-large">
+          <span class="btn-text">Analyze Link</span>
+          <div class="spinner hidden" id="fetch-spinner"></div>
+        </button>
+      </form>
+    </section>
+
+    <!-- ── MEDIA METADATA & CONFIG CARD (Initially hidden) ── -->
+    <section class="card media-card hidden" id="media-card">
+      <div class="media-overview">
+        <div class="media-thumbnail-wrap">
+          <img id="media-thumb" src="" alt="Thumbnail preview" class="media-thumb" />
+          <span class="duration-badge" id="media-duration">0:00</span>
+          <span class="type-badge" id="media-type-badge">Video</span>
+        </div>
+        <div class="media-meta">
+          <h2 class="media-title" id="media-title">Video Title</h2>
+          <div class="media-tags">
+            <span class="tag-channel" id="media-channel">Channel Name</span>
+            <span class="tag-count hidden" id="media-item-count">0 Videos</span>
+          </div>
+
+          <!-- Quality Selection -->
+          <div class="format-selection-group">
+            <label class="section-label">Select Output Quality / Format:</label>
+            <div class="quality-pills" id="quality-pills">
+              <button type="button" class="pill" data-quality="4k">
+                <span class="pill-title">4K 2160p</span>
+                <span class="pill-sub">Ultra HD</span>
+              </button>
+              <button type="button" class="pill" data-quality="1440p">
+                <span class="pill-title">1440p</span>
+                <span class="pill-sub">Quad HD</span>
+              </button>
+              <button type="button" class="pill active" data-quality="1080p">
+                <span class="pill-title">1080p</span>
+                <span class="pill-sub">Full HD</span>
+              </button>
+              <button type="button" class="pill" data-quality="720p">
+                <span class="pill-title">720p</span>
+                <span class="pill-sub">Standard HD</span>
+              </button>
+              <button type="button" class="pill" data-quality="audio_mp3">
+                <span class="pill-title">MP3 Audio</span>
+                <span class="pill-sub">320 kbps</span>
+              </button>
+              <button type="button" class="pill" data-quality="audio_m4a">
+                <span class="pill-title">M4A Audio</span>
+                <span class="pill-sub">Lossless</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playlist Selection Items (Shown if playlist) -->
+      <div class="playlist-manager hidden" id="playlist-manager">
+        <div class="playlist-header-controls">
+          <div class="playlist-counts">
+            <span class="playlist-heading">Playlist Items</span>
+            <span class="playlist-counter" id="playlist-selected-count">Selected all</span>
+          </div>
+          <div class="playlist-quick-actions">
+            <button type="button" id="btn-select-all" class="btn-link">Select All</button>
+            <span class="action-divider">•</span>
+            <button type="button" id="btn-deselect-all" class="btn-link">Deselect All</button>
+          </div>
+        </div>
+        <div class="playlist-items-list" id="playlist-items-container">
+          <!-- Items inserted dynamically -->
+        </div>
+      </div>
+
+      <div class="media-actions">
+        <button type="button" id="btn-start-download" class="btn btn-cta btn-large">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="btn-download-text">Start Download</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ── DOWNLOAD HUD (SSE Real-time progress) ── -->
+    <section class="card hud-card hidden" id="hud-card">
+      <div class="hud-header">
+        <div class="hud-title-wrap">
+          <span class="hud-pulse"></span>
+          <h2 class="hud-status-title" id="hud-status-title">Downloading…</h2>
+        </div>
+        <div class="hud-actions">
+          <button type="button" id="btn-cancel-download" class="btn btn-danger btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <span>Cancel</span>
+          </button>
+          <button type="button" id="btn-open-folder" class="btn btn-secondary btn-sm hidden">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>Open in Explorer</span>
           </button>
         </div>
-        <p id="url-error" class="error-msg hidden"></p>
-      </section>
+      </div>
 
-      <!-- Playlist / Video Info Section -->
-      <section class="card playlist-card hidden" id="playlist-section">
-        <div class="playlist-header">
-          <div style="flex: 1; min-width: 260px;">
-            <div class="section-label">
-              <span class="step-num">02</span>
-              <span id="section-step-title">Media Details</span>
-            </div>
+      <div class="current-item-banner" id="current-item-banner">
+        <span class="item-badge" id="hud-item-badge">Item 1/1</span>
+        <span class="item-name" id="hud-item-name">Initializing download…</span>
+      </div>
 
-            <!-- Single Video Hero View -->
-            <div id="single-video-hero" class="single-video-hero hidden">
-              <div class="single-thumb-wrap">
-                <img id="single-thumb-img" src="" alt="Thumbnail" />
-                <span id="single-duration-badge" class="thumb-duration"></span>
-              </div>
-              <div class="single-info">
-                <span class="video-type-chip">🎥 Single Video</span>
-                <h2 class="playlist-title" id="single-video-title">—</h2>
-                <p class="playlist-meta" id="single-video-uploader">—</p>
-              </div>
-            </div>
-
-            <!-- Playlist View Header -->
-            <div id="playlist-hero" class="playlist-hero">
-              <h2 class="playlist-title" id="playlist-title">—</h2>
-              <p class="playlist-meta" id="playlist-meta">—</p>
-            </div>
-          </div>
-
-          <div class="quality-block">
-            <label for="quality-select" class="quality-label">Quality</label>
-            <div class="select-wrap">
-              <select id="quality-select" class="quality-select">
-                <option value="best">Best Available</option>
-                <option value="4k">4K (2160p)</option>
-                <option value="1440p">1440p (2K)</option>
-                <option value="1080p" selected>1080p (Full HD)</option>
-                <option value="720p">720p (HD)</option>
-                <option value="480p">480p (SD)</option>
-                <option value="360p">360p (Low)</option>
-                <option value="audio">Audio Only (M4A)</option>
-              </select>
-              <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M6 9l6 6 6-6"/>
-              </svg>
-            </div>
-            <button id="download-btn" class="btn btn-download" aria-label="Start downloading">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              <span id="download-btn-text">Download</span>
-            </button>
-          </div>
+      <!-- Main Progress Bar -->
+      <div class="progress-wrap">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="hud-progress-fill" style="width: 0%;"></div>
         </div>
-
-        <!-- Video Grid for Playlists -->
-        <div class="video-grid" id="video-grid"></div>
-      </section>
-
-      <!-- Download Progress Section -->
-      <section class="card progress-card hidden" id="progress-section">
-        <div class="progress-header-row">
-          <div class="section-label">
-            <span class="step-num">03</span>
-            <span>Downloading…</span>
-          </div>
-          <div class="progress-actions">
-            <button id="open-folder-btn" class="btn btn-ghost hidden" aria-label="Open downloads folder">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-              </svg>
-              Open Folder
-            </button>
-            <button id="cancel-btn" class="btn btn-danger" aria-label="Cancel download">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-              Cancel
-            </button>
-          </div>
+        <div class="progress-meta">
+          <span class="progress-percent" id="hud-percent">0%</span>
+          <span class="progress-detail" id="hud-detail">Connecting to stream…</span>
         </div>
+      </div>
 
-        <!-- Overall Progress -->
-        <div class="overall-progress">
-          <div class="overall-stats">
-            <span id="overall-label">Starting…</span>
-            <span id="overall-count">0 / 0</span>
-          </div>
-          <div class="overall-bar-track">
-            <div class="overall-bar-fill" id="overall-bar"></div>
-          </div>
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Speed</span>
+          <span class="stat-value" id="hud-speed">-- MB/s</span>
         </div>
-
-        <!-- Per-video list -->
-        <div class="video-download-list" id="video-download-list"></div>
-
-        <!-- Done State -->
-        <div class="done-banner hidden" id="done-banner">
-          <div class="done-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-          </div>
-          <div>
-            <h3>All done! 🎉</h3>
-            <p id="done-desc">Your playlist has been downloaded.</p>
-          </div>
+        <div class="stat-card">
+          <span class="stat-label">ETA</span>
+          <span class="stat-value" id="hud-eta">--:--</span>
         </div>
-      </section>
+        <div class="stat-card">
+          <span class="stat-label">Size</span>
+          <span class="stat-value" id="hud-size">-- MB</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Status</span>
+          <span class="stat-value highlight" id="hud-phase">Starting</span>
+        </div>
+      </div>
+    </section>
 
-    </main>
+    <!-- ── RECENT DOWNLOADS HISTORY ── -->
+    <section class="card history-card" id="history-section">
+      <div class="card-header">
+        <div class="header-left">
+          <h3 class="card-title-sm">Recent Downloads</h3>
+        </div>
+        <button id="btn-clear-history" class="btn-link">Clear</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <p class="empty-hint" id="history-empty">No downloads yet in this session.</p>
+      </div>
+    </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <p>Powered by <strong>yt-dlp</strong> &amp; <strong>ffmpeg</strong> · Runs 100% locally on your machine</p>
+    <!-- ── FOOTER ── -->
+    <footer class="app-footer">
+      <p>MediaDL • Powered by yt-dlp &amp; FFmpeg • Safe, local, and ad-free</p>
     </footer>
-
   </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
 
   <script src="app.js"></script>
 </body>
