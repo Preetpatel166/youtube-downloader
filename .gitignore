@@ -10,6 +10,4 @@ downloads/
 *.mp3
 test_out*
 .DS_Store
-cookies.txt
-auth_state.json
 *.log
