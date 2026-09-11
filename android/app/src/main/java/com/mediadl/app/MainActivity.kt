@@ -98,6 +98,38 @@ class MainActivity : AppCompatActivity() {
         binding.btnDownload.setOnClickListener {
             startDownloadJob()
         }
+
+        // Server switcher chip
+        binding.chipServerStatus.setOnClickListener {
+            showServerConfigDialog()
+        }
+    }
+
+    private fun showServerConfigDialog() {
+        val servers = arrayOf(
+            "Render Cloud (https://youtube-downloader-12ed.onrender.com/)",
+            "Local PC Wi-Fi (http://10.192.216.1:3000/)"
+        )
+        val currentIndex = if (com.mediadl.app.api.ApiClient.currentBaseUrl.contains("onrender.com")) 0 else 1
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Select Backend Server")
+            .setSingleChoiceItems(servers, currentIndex) { dialog, which ->
+                if (which == 0) {
+                    com.mediadl.app.api.ApiClient.currentBaseUrl = "https://youtube-downloader-12ed.onrender.com/"
+                    binding.chipServerStatus.text = "Render Live"
+                    binding.chipServerStatus.setTextColor(getColor(R.color.accent_green))
+                    Toast.makeText(this, "Connected to Render Cloud", Toast.LENGTH_SHORT).show()
+                } else {
+                    com.mediadl.app.api.ApiClient.currentBaseUrl = "http://10.192.216.1:3000/"
+                    binding.chipServerStatus.text = "Local PC (Wi-Fi)"
+                    binding.chipServerStatus.setTextColor(getColor(R.color.brand_cyan))
+                    Toast.makeText(this, "Connected to Local PC", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun checkClipboardForYouTubeLink() {

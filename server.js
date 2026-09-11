@@ -340,8 +340,10 @@ function handleFetchInfo(req, res) {
       if (errOutput.includes('This video is unavailable')) {
         cleanError = 'This video is unavailable or has been removed from YouTube.';
       } else if (errOutput.includes('Private video')) {
-        cleanError = 'This video or playlist is private. Connect a signed-in browser to access it.';
-      } else if (errOutput.includes('Sign in to confirm')) {
+        cleanError = 'This video or playlist is private. Connect a signed-in session to access it.';
+      } else if (errOutput.includes('not a bot') || errOutput.includes('bot')) {
+        cleanError = 'YouTube bot check triggered on cloud server. Please upload YouTube cookies in the web dashboard or use your local PC server.';
+      } else if (errOutput.includes('Sign in to confirm') || errOutput.includes('age-restricted')) {
         cleanError = 'YouTube requires sign-in for this age-restricted video.';
       } else if (errOutput.trim()) {
         const match = errOutput.match(/ERROR:\s*(?:\[youtube\]\s*)?([^\n\r]+)/i);
